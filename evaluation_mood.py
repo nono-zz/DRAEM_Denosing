@@ -139,6 +139,10 @@ def evaluation(args, classifier, decoder, bn, test_dataloader, epoch, loss_funct
                     initial_feature = np.transpose(initial_feature, (1,2,0))
                     cv2.imwrite(initial_feature_path, initial_feature*255)
                     
+                    rec = min_max_norm(rec[0,:,:,:].to('cpu').detach().numpy())
+                    rec = np.transpose(rec, (1,2,0))
+                    cv2.imwrite(initial_feature_path, rec*255)
+                    
                     
                     cv2.imwrite(gt_path, gt * 255)
                     
