@@ -275,7 +275,7 @@ def train_on_device(args):
             
             # torch.save(model_segment.state_dict(), ckp_path.replace('last', 'segment'))
             torch.save({'model': model_segment.state_dict(),
-                        'epoch': epoch}, ckp_path)
+                        'epoch': epoch}, ckp_path.replace('last', 'segment'))
         
         
 
