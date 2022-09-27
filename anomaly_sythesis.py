@@ -134,7 +134,7 @@ def cp(img_path):
 
 """random shape
 """
-def randomShape(img, scaleUpper=255):
+def randomShape(img, scaleUpper=255, threshold=200):
 
 
     # define random seed to change the pattern
@@ -155,7 +155,7 @@ def randomShape(img, scaleUpper=255):
 
     # threshold stretched image to control the size
     # thresh = cv2.threshold(stretch, 200, 255, cv2.THRESH_BINARY)[1]
-    thresh = cv2.threshold(stretch, 220, 255, cv2.THRESH_BINARY)[1]
+    thresh = cv2.threshold(stretch, threshold, 255, cv2.THRESH_BINARY)[1]
 
     # apply morphology open and close to smooth out shapes
     kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (9,9))
@@ -211,12 +211,12 @@ def colorJitterRandom_PIL(img_path, colorjitterScale=0):
     return new_img.astype(np.uint8), gt_mask.astype(np.uint8)
 
 
-def colorJitterRandom(img, colorRange = 150, colorjitterScale=0):
+def colorJitterRandom(img, colorRange = 150, colorjitterScale=0, threshold=200):
     colorJitter_fn = transforms.ColorJitter(brightness = colorjitterScale,
                                                       contrast = colorjitterScale,
                                                       saturation = colorjitterScale,
                                                       hue = colorjitterScale)
-    new_img, gt_mask = randomShape(img)
+    new_img, gt_mask = randomShape(img, threshold=threshold)
     # img = cv2.imread(img_path, cv2.IMREAD_GRAYSCALE)
     img = cv2.resize(img, [256, 256])
 
