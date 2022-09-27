@@ -297,7 +297,6 @@ if __name__=="__main__":
     parser.add_argument('--dataset_name', default='hist_DIY', choices=['hist_DIY', 'Brain_MRI', 'CovidX', 'RESC_average'], action='store')
     parser.add_argument('--model', default='DRAEM', choices=['ws_skip_connection', 'DRAEM_reconstruction', 'DRAEM_discriminitive'], action='store')
     parser.add_argument('--process_method', default='Gaussian_noise', choices=['none', 'Guassian_noise', 'DRAEM', 'Simplex_noise'], action='store')
-    parser.add_argument('--threshold', default=0.15, action='store')
     parser.add_argument('--multi_layer', default=False, action='store')
     parser.add_argument('--resume_training', default=False, action='store')
     
