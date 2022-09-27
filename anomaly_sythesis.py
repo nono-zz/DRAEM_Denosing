@@ -154,7 +154,8 @@ def randomShape(img, scaleUpper=255):
     stretch = skimage.exposure.rescale_intensity(blur, in_range='image', out_range=(0,255)).astype(np.uint8)
 
     # threshold stretched image to control the size
-    thresh = cv2.threshold(stretch, 200, 255, cv2.THRESH_BINARY)[1]
+    # thresh = cv2.threshold(stretch, 200, 255, cv2.THRESH_BINARY)[1]
+    thresh = cv2.threshold(stretch, 220, 255, cv2.THRESH_BINARY)[1]
 
     # apply morphology open and close to smooth out shapes
     kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (9,9))
@@ -257,13 +258,16 @@ def colorJitterRandom_Mask(img, colorRange = 150, colorjitterScale=0):
     
     # img_jitter = img_jitter.save('color_jitter.png')
     # img = img.save('color_jitter_none.png')
-    cv2.imwrite('color_jitter.png', img_jitter)
-    cv2.imwrite('color_jitter_none.png', img)
+    # cv2.imwrite('color_jitter.png', img_jitter)
+    # cv2.imwrite('color_jitter_none.png', img)
     
     # combine the jitter_img with the raw img
     # new_img = Image.composite(ImageOps.invert(gt_mask), img)  + Image.composite(gt_mask, img_jitter)
     # new_img = Image.composite(img, img_jitter, gt_mask)
     new_img = img * (1-gt_mask) + img_jitter * gt_mask
+    
+    cv2.imwrite('new_img.png', new_img)
+    
     # return new_img.reshape([img.shape[0], img.shape[1]]), gt_mask.reshape([img.shape[0], img.shape[1]])
     return new_img.astype(np.uint8), gt_mask.astype(np.uint8)
     

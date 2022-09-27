@@ -203,11 +203,11 @@ def train_on_device(args):
             # loss = Dice_loss
 
             
-            # save_image(aug, 'aug.png')
-            # save_image(rec, 'rec_output.png')
-            # save_image(img, 'rec_target.png')
-            # save_image(anomaly_mask, 'mask_target.png')
-            # save_image(out_mask_sm[:,1:,:,:], 'mask_output.png')
+            save_image(aug, 'aug.png')
+            save_image(rec, 'rec_output.png')
+            save_image(img, 'rec_target.png')
+            save_image(anomaly_mask, 'mask_target.png')
+            save_image(out_mask_sm[:,1:,:,:], 'mask_output.png')
             # loss = loss_l1(img, output)
 
             optimizer.zero_grad()
