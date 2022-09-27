@@ -281,8 +281,8 @@ if __name__ == '__main__':
     # method = cp
     cutpaste = CutPasteUnion(transform=None)
     
-    img_dir = '/home/zhaoxiang/Sample_images/raw'
-    save_dir = '/home/zhaoxiang/Sample_images/{}'.format(method.__name__)
+    img_dir = '/home/zhaoxiang/mood_challenge/Sample_images/raw'
+    save_dir = '/home/zhaoxiang/mood_challenge/Sample_images/{}'.format(method.__name__)
     if not os.path.exists(save_dir):
         os.mkdir(save_dir)
         
