@@ -1,3 +1,4 @@
+from pickle import FALSE
 from matplotlib.pyplot import gray
 import torch
 from torch.utils.data import DataLoader
@@ -129,7 +130,7 @@ def train_on_device(args):
         # model_denoise = torch.nn.DataParallel(model_denoise, device_ids=[0, 1])
         # model_segment = torch.nn.DataParallel(model_segment, device_ids=[0, 1])
         base_path= '/home/zhaoxiang'
-        output_path = os.path.join(base_path, 'outputs')
+        output_path = os.path.join(base_path, 'output')
 
         experiment_path = os.path.join(output_path, run_name)
         if not os.path.exists(experiment_path):
@@ -144,13 +145,11 @@ def train_on_device(args):
 
         result_path = os.path.join(experiment_path, 'results.txt')
         
-    # model = torch.nn.DataParallel(model, device_ids=[0, 1])
-    
-    
+    last_epoch = 0
     if args.resume_training:
-        model_segment.load_state_dict(torch.load(ckp_path.replace('last', 'segment'))['student_enc'])
-        last_epoch =torch.load(ckp_path.replace('last', 'segment'))['epoch']     
-    
+        model_segment.load_state_dict(torch.load(ckp_path.replace('last', 'segment'))['model'])
+        last_epoch = torch.load(ckp_path.replace('last', 'segment'))['epoch']
+        
     train_data = MVTecDataset(root=main_path, transform = test_transform, gt_transform=gt_transform, phase='train', dirs = dirs, data_source=args.experiment_name, args = args)
     val_data = MVTecDataset(root=main_path, transform = test_transform, gt_transform=gt_transform, phase='test', dirs = dirs, data_source=args.experiment_name, args = args)
     test_data = MVTecDataset(root=main_path, transform = test_transform, gt_transform=gt_transform, phase='test', dirs = dirs, data_source=args.experiment_name, args = args)
@@ -169,7 +168,8 @@ def train_on_device(args):
     loss_dice = DiceLoss()
     loss_diceBCE = DiceBCELoss()
     
-    for epoch in range(args.epochs):
+    for epoch in range(last_epoch, args.epochs):
+    # for epoch in range(args.epochs):
         # evaluation(args, model_denoise, model_segment, test_dataloader, epoch, loss_l1, visualizer, run_name)
         model_segment.train()
         model_denoise.eval()
@@ -273,7 +273,9 @@ def train_on_device(args):
             with open(result_path, 'a') as f:
                 f.writelines('Epoch:{}, Pixel Auroc:{:.3f}, Sample Auroc{:.3f}, Dice:{:3f} \n'.format(epoch, auroc_px, auroc_sp, dice_value))   
             
-            torch.save(model_segment.state_dict(), ckp_path.replace('last', 'segment'))
+            # torch.save(model_segment.state_dict(), ckp_path.replace('last', 'segment'))
+            torch.save({'model': model_segment.state_dict(),
+                        'epoch': epoch}, ckp_path)
         
         
 
