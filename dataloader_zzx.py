@@ -215,7 +215,7 @@ class MVTecDataset(torch.utils.data.Dataset):
             randomShapeLow_img, randomShapeLow_gt = randomShape(img_numpy, scaleUpper=10)
             # cv2.imwrite('randomShape.png', randomShapeLow_img)
             
-            colorJitter_img, colorJitter_gt = colorJitterRandom(img_numpy, colorRange=150)
+            colorJitter_img, colorJitter_gt = colorJitterRandom(img_numpy, colorRange=100)
             
             # distortion_img = distortion(np.array(img))
             # cv2.imwrite('distortion.png', distortion_img)
