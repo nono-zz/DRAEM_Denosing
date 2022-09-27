@@ -254,7 +254,7 @@ def evaluation_DRAEM(args, model_denoise, model_segment, test_dataloader, epoch,
             
             for name in names:
                 if name in img_path[0]:
-                    save_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'outputs', run_name, name)
+                    save_dir = os.path.join('/home/zhaoxiang', 'output', run_name, name)
                     
                     
                     a_map_path = os.path.join(save_dir, 'a_map_{}.png'.format(epoch))
@@ -273,6 +273,9 @@ def evaluation_DRAEM(args, model_denoise, model_segment, test_dataloader, epoch,
                     initial_feature = np.transpose(initial_feature, (1,2,0))
                     cv2.imwrite(initial_feature_path, initial_feature*255)
                     
+                    rec = min_max_norm(rec[0,:,:,:].to('cpu').detach().numpy())
+                    rec = np.transpose(rec, (1,2,0))
+                    cv2.imwrite(reconstruction_path, rec*255)
                     
                     cv2.imwrite(gt_path, gt * 255)
                     
