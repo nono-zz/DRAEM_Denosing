@@ -140,8 +140,8 @@ def train_on_device(args):
         model_denoise.load_state_dict(torch.load(ckp_path, map_location = 'cpu'))
         model_denoise = model_denoise.cuda()
         
-        model_denoise = torch.nn.DataParallel(model_denoise, device_ids=[0, 1])
-        model_segment = torch.nn.DataParallel(model_segment, device_ids=[0, 1])
+        # model_denoise = torch.nn.DataParallel(model_denoise, device_ids=[0, 1])
+        # model_segment = torch.nn.DataParallel(model_segment, device_ids=[0, 1])
 
         result_path = os.path.join(experiment_path, 'results.txt')
         
