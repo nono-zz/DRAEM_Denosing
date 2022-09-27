@@ -254,7 +254,7 @@ def evaluation_DRAEM(args, model_denoise, model_segment, test_dataloader, epoch,
             
             for name in names:
                 if name in img_path[0]:
-                    save_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'outputs', run_name, name)
+                    save_dir = os.path.join('/home/zhaoxiang', 'output', run_name, name)
                     
                     
                     a_map_path = os.path.join(save_dir, 'a_map_{}.png'.format(epoch))

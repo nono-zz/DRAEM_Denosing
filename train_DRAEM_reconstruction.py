@@ -264,7 +264,7 @@ def train_on_device(args):
             
             # torch.save(model_segment.state_dict(), ckp_path.replace('last', 'segment'))
             torch.save({'model_denoise': model_denoise.state_dict(),
-                        'mdoel_segment': model_segment.state_dict(),
+                        'model': model_segment.state_dict(),
                         'epoch': epoch}, ckp_path)
         
         
