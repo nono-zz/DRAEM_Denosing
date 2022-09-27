@@ -1,5 +1,3 @@
-from pickle import FALSE
-from matplotlib.pyplot import gray
 import torch
 from torch.utils.data import DataLoader
 from torch import optim
