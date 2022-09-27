@@ -140,12 +140,13 @@ def train_on_device(args):
     model_segment = torch.nn.DataParallel(model_segment, device_ids=[0, 1])
     
     # classifier.load_state_dict(torch.load(ckp_teacher_path))
-    model_segment.load_state_dict(torch.load(ckp_path)['model_segment'])
+    model_segment.load_state_dict(torch.load(ckp_path)['model'])
     model_denoise.load_state_dict(torch.load(ckp_path)['model_denoise'])
     
     test_data = MVTecDataset(root=main_path, transform = test_transform, gt_transform=gt_transform, phase='test', dirs = dirs, data_source=args.experiment_name, args = args)
     test_dataloader = torch.utils.data.DataLoader(test_data, batch_size = 1, shuffle = False)
-    
+    loss_l1 = torch.nn.L1Loss()
+        
     epoch = 'test'
         
     model_denoise.eval()
@@ -184,10 +185,10 @@ if __name__=="__main__":
     # need to be changed/checked every time
     parser.add_argument('--bs', default = 8, action='store', type=int)
     parser.add_argument('--gpu_id', default = ['0','1'], action='store', type=str, required=False)
-    parser.add_argument('--experiment_name', default='liver', choices=['retina, liver, brain, head', 'chest'], action='store')
+    parser.add_argument('--experiment_name', default='DRAEM_Denoising_reconstruction', choices=['retina, liver, brain, head', 'chest'], action='store')
     parser.add_argument('--dataset_name', default='hist_DIY', choices=['hist_DIY', 'Brain_MRI', 'Head_CT', 'CovidX', 'RESC_average', 'Atlas_train+LiTs_test_crop'], action='store')
-    parser.add_argument('--model', default='resnet', choices=['ws_skip_connection', 'DRAEM_reconstruction', 'DRAEM_discriminitive'], action='store')
-    parser.add_argument('--process_method', default='Gaussian_noise', choices=['none', 'Gaussian_noise', 'Gaussian_noise+Cutpaste+RandomShape', 'DRAEM_tumor', 'Simplex_noise', 'Simplex_noise_best_best'], action='store')
+    parser.add_argument('--model', default='DRAEM', choices=['ws_skip_connection', 'DRAEM_reconstruction', 'DRAEM_discriminitive'], action='store')
+    parser.add_argument('--process_method', default='Guassian_noise', choices=['none', 'Gaussian_noise', 'Gaussian_noise+Cutpaste+RandomShape', 'DRAEM_tumor', 'Simplex_noise', 'Simplex_noise_best_best'], action='store')
     parser.add_argument('--resume_training', default = True, action='store', type=int)
     
     args = parser.parse_args()
