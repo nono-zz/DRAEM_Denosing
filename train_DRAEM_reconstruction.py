@@ -203,11 +203,11 @@ def train_on_device(args):
             # loss = Dice_loss
 
             
-            save_image(aug, 'aug.png')
-            save_image(rec, 'rec_output.png')
-            save_image(img, 'rec_target.png')
-            save_image(anomaly_mask, 'mask_target.png')
-            save_image(out_mask_sm[:,1:,:,:], 'mask_output.png')
+            # save_image(aug, 'aug.png')
+            # save_image(rec, 'rec_output.png')
+            # save_image(img, 'rec_target.png')
+            # save_image(anomaly_mask, 'mask_target.png')
+            # save_image(out_mask_sm[:,1:,:,:], 'mask_output.png')
             # loss = loss_l1(img, output)
 
             optimizer.zero_grad()
@@ -291,7 +291,7 @@ if __name__=="__main__":
     # need to be changed/checked every time
     parser.add_argument('--bs', default = 8, action='store', type=int)
     parser.add_argument('--gpu_id', default=['0','1'], action='store', type=str, required=False)
-    parser.add_argument('--experiment_name', default='DRAEM_Denoising_reconstruction', choices=['retina, liver, brain, head'], action='store')
+    parser.add_argument('--experiment_name', default='DRAEM_Denoising_reconstruction_mask', choices=['retina, liver, brain, head'], action='store')
     parser.add_argument('--dataset_name', default='hist_DIY', choices=['hist_DIY', 'Brain_MRI', 'CovidX', 'RESC_average'], action='store')
     parser.add_argument('--model', default='DRAEM', choices=['ws_skip_connection', 'DRAEM_reconstruction', 'DRAEM_discriminitive'], action='store')
     parser.add_argument('--process_method', default='Guassian_noise', choices=['none', 'Guassian_noise', 'DRAEM', 'Simplex_noise'], action='store')

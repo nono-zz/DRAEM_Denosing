@@ -161,7 +161,9 @@ def randomShape(img, scaleUpper=255):
     result = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, kernel)
     result = cv2.morphologyEx(result, cv2.MORPH_CLOSE, kernel)
 
-    mask, start, stop = getBbox(img)
+    # mask, start, stop = getBbox(img)
+    mask = img > 0.01
+    
     anomalyMask = mask * result
     anomalyMask = np.where(anomalyMask > 0, 1, 0)
     
@@ -209,6 +211,35 @@ def colorJitterRandom_PIL(img_path, colorjitterScale=0):
 
 
 def colorJitterRandom(img, colorRange = 150, colorjitterScale=0):
+    colorJitter_fn = transforms.ColorJitter(brightness = colorjitterScale,
+                                                      contrast = colorjitterScale,
+                                                      saturation = colorjitterScale,
+                                                      hue = colorjitterScale)
+    new_img, gt_mask = randomShape(img)
+    # img = cv2.imread(img_path, cv2.IMREAD_GRAYSCALE)
+    img = cv2.resize(img, [256, 256])
+
+    while abs(colorjitterScale) < 50:
+        colorjitterScale = random.uniform(-colorRange,colorRange)
+        
+    color_mask = np.ones_like(img) * colorjitterScale
+    img_jitter = img + color_mask
+    img_jitter = img_jitter.clip(0, 255)
+    
+    # img_jitter = img_jitter.save('color_jitter.png')
+    # img = img.save('color_jitter_none.png')
+    cv2.imwrite('color_jitter.png', img_jitter)
+    cv2.imwrite('color_jitter_none.png', img)
+    
+    # combine the jitter_img with the raw img
+    # new_img = Image.composite(ImageOps.invert(gt_mask), img)  + Image.composite(gt_mask, img_jitter)
+    # new_img = Image.composite(img, img_jitter, gt_mask)
+    new_img = img * (1-gt_mask) + img_jitter * gt_mask
+    # return new_img.reshape([img.shape[0], img.shape[1]]), gt_mask.reshape([img.shape[0], img.shape[1]])
+    return new_img.astype(np.uint8), gt_mask.astype(np.uint8)
+
+
+def colorJitterRandom_Mask(img, colorRange = 150, colorjitterScale=0):
     colorJitter_fn = transforms.ColorJitter(brightness = colorjitterScale,
                                                       contrast = colorjitterScale,
                                                       saturation = colorjitterScale,
