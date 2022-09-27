@@ -122,7 +122,7 @@ def train_on_device(args):
     elif args.model == 'DRAEM_discriminitive':
         model = DiscriminativeSubNetwork(in_channels=n_input, out_channels=n_input).cuda()
     elif args.model == 'DRAEM':
-        model_denoise = UNet(in_channels=n_input, n_classes=n_classes, norm="group", up_mode="upconv", depth=depth, wf=wf, padding=True)
+        model_denoise = UNet(in_channels=n_input, n_classes=n_classes, norm="group", up_mode="upconv", depth=depth, wf=wf, padding=True).cuda()
         model_segment = DiscriminativeSubNetwork(in_channels=2, out_channels=2).cuda()
         # model_denoise = torch.nn.DataParallel(model_denoise, device_ids=[0])
         # model_segment = torch.nn.DataParallel(model_segment, device_ids=[0])
@@ -137,9 +137,6 @@ def train_on_device(args):
             os.makedirs(experiment_path, exist_ok=True)
         ckp_path = os.path.join(experiment_path, 'last.pth')
         
-        model_denoise.load_state_dict(torch.load(ckp_path, map_location = 'cpu'))
-        model_denoise = model_denoise.cuda()
-        
         model_denoise = torch.nn.DataParallel(model_denoise, device_ids=[0, 1])
         model_segment = torch.nn.DataParallel(model_segment, device_ids=[0, 1])
 
@@ -147,8 +144,9 @@ def train_on_device(args):
         
     last_epoch = 0
     if args.resume_training:
-        model_segment.load_state_dict(torch.load(ckp_path.replace('last', 'segment'))['model'])
-        last_epoch = torch.load(ckp_path.replace('last', 'segment'))['epoch']
+        model_denoise.load_state_dict(torch.load(ckp_path)['model_denoise'])
+        model_segment.load_state_dict(torch.load(ckp_path)['model_segment'])
+        last_epoch = torch.load(ckp_path)['epoch']
         
     train_data = MVTecDataset(root=main_path, transform = test_transform, gt_transform=gt_transform, phase='train', dirs = dirs, data_source=args.experiment_name, args = args)
     val_data = MVTecDataset(root=main_path, transform = test_transform, gt_transform=gt_transform, phase='test', dirs = dirs, data_source=args.experiment_name, args = args)
@@ -160,7 +158,7 @@ def train_on_device(args):
         
     loss_l1 = torch.nn.L1Loss()
     # optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
-    optimizer = torch.optim.Adam(model_segment.parameters(), lr = args.lr)
+    optimizer = torch.optim.Adam(list(model_segment.parameters()) + list(model_denoise.parameters()), lr = args.lr)
     
     loss_l2 = torch.nn.modules.loss.MSELoss()
     loss_ssim = SSIM()
@@ -169,10 +167,9 @@ def train_on_device(args):
     loss_diceBCE = DiceBCELoss()
     
     for epoch in range(last_epoch, args.epochs):
-    # for epoch in range(args.epochs):
         # evaluation(args, model_denoise, model_segment, test_dataloader, epoch, loss_l1, visualizer, run_name)
         model_segment.train()
-        model_denoise.eval()
+        model_denoise.train()
         loss_list = []
         
         # evaluation_DRAEM(args, model_denoise, model_segment, test_dataloader, epoch, loss_l1, run_name)
@@ -185,16 +182,8 @@ def train_on_device(args):
             img = img.cuda()
             aug = aug.cuda()
             anomaly_mask = anomaly_mask.cuda()
-            
-            # if "Gaussian" in args.process_method:
-            #     input = add_Gaussian_noise(img, args.noise_res, args.noise_std, args.img_size)         # if noise -> reconstruction
 
             rec = model_denoise(aug)
-            
-            """ detach the reconstruction image? """
-            rec = rec.to('cpu').detach()
-            rec = rec.cuda()
-            
             joined_in = torch.cat((rec, aug), dim=1)
             
             out_mask = model_segment(joined_in)
@@ -205,9 +194,9 @@ def train_on_device(args):
             
             if anomaly_mask.max() != 0:
                 segment_loss = loss_focal(out_mask_sm, anomaly_mask)
-                loss = segment_loss
+                loss = segment_loss + l2_loss + ssim_loss
             else:
-                continue
+                loss = l2_loss + ssim_loss
             # Dice_loss = loss_diceBCE(out_mask_sm, anomaly_mask)
             
             # loss = l2_loss + ssim_loss + segment_loss
@@ -274,7 +263,8 @@ def train_on_device(args):
                 f.writelines('Epoch:{}, Pixel Auroc:{:.3f}, Sample Auroc{:.3f}, Dice:{:3f} \n'.format(epoch, auroc_px, auroc_sp, dice_value))   
             
             # torch.save(model_segment.state_dict(), ckp_path.replace('last', 'segment'))
-            torch.save({'model': model_segment.state_dict(),
+            torch.save({'model_denoise': model_denoise.state_dict(),
+                        'mdoel_segment': model_segment.state_dict(),
                         'epoch': epoch}, ckp_path)
         
         
@@ -301,7 +291,7 @@ if __name__=="__main__":
     # need to be changed/checked every time
     parser.add_argument('--bs', default = 8, action='store', type=int)
     parser.add_argument('--gpu_id', default=['0','1'], action='store', type=str, required=False)
-    parser.add_argument('--experiment_name', default='DRAEM_Denoising', choices=['retina, liver, brain, head'], action='store')
+    parser.add_argument('--experiment_name', default='DRAEM_Denoising_reconstruction', choices=['retina, liver, brain, head'], action='store')
     parser.add_argument('--dataset_name', default='hist_DIY', choices=['hist_DIY', 'Brain_MRI', 'CovidX', 'RESC_average'], action='store')
     parser.add_argument('--model', default='DRAEM', choices=['ws_skip_connection', 'DRAEM_reconstruction', 'DRAEM_discriminitive'], action='store')
     parser.add_argument('--process_method', default='Guassian_noise', choices=['none', 'Guassian_noise', 'DRAEM', 'Simplex_noise'], action='store')
