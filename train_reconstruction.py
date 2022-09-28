@@ -161,7 +161,7 @@ def train_on_device(args):
         # evaluation(args, model_denoise, model_segment, test_dataloader, epoch, loss_l1, visualizer, run_name)
         model.train()
         loss_list = []
-        dice_value, auroc_px, auroc_sp = evaluation_reconstruction(args, model, test_dataloader, epoch, loss_l1, run_name)
+        # dice_value, auroc_px, auroc_sp = evaluation_reconstruction(args, model, test_dataloader, epoch, loss_l1, run_name)
         
         for img, aug, anomaly_mask in train_dataloader:
             img = torch.reshape(img, (-1, 1, args.img_size, args.img_size))
