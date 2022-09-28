@@ -100,7 +100,8 @@ def train_on_device(args):
         os.makedirs(args.log_path)
 
     # run_name = args.experiment_name + '_' +str(args.lr)+'_'+str(args.epochs)+'_bs'+str(args.bs)+"_"+"Guassian_blur"
-    run_name = args.experiment_name + '_' +str(args.lr)+'_'+str(args.epochs)+'_bs'+str(args.bs)+"_" + args.model + "_" + args.process_method
+    run_name = args.experiment_name + '_' +str(args.lr)+'_'+str(args.epochs)+'_colorRange'+'_'+str(args.colorRange)+'_threshold'+'_'+str(args.threshold)+"_" + args.model + "_" + args.process_method
+    # run_name = args.experiment_name + '_' +str(args.lr)+'_'+str(args.epochs)+'_bs'+str(args.bs)+"_" + args.model + "_" + args.process_method
 
     # main_path = '/home/zhaoxiang/dataset/{}'.format(args.dataset_name)
     main_path = '/home/zhaoxiang/dataset/Atlas_train+LiTs_test'
@@ -169,8 +170,6 @@ if __name__=="__main__":
     parser.add_argument('--obj_id', default=1,  action='store', type=int)
     parser.add_argument('--lr', default=0.0001, action='store', type=float)
     parser.add_argument('--epochs', default=700, action='store', type=int)
-    parser.add_argument('--c v', default='/home/zhaoxiang/baselines/DRAEM/datasets/mvtec/', action='store', type=str)
-    parser.add_argument('--anomaly_source_path', default='/home/zhaoxiang/baselines/DRAEM/datasets/dtd/images/', action='store', type=str)
     parser.add_argument('--checkpoint_path', default='./checkpoints/', action='store', type=str)
     parser.add_argument('--log_path', default='./logs/', action='store', type=str)
     parser.add_argument('--visualize', default=True, action='store_true')
@@ -184,12 +183,15 @@ if __name__=="__main__":
     
     # need to be changed/checked every time
     parser.add_argument('--bs', default = 8, action='store', type=int)
-    parser.add_argument('--gpu_id', default = ['0','1'], action='store', type=str, required=False)
-    parser.add_argument('--experiment_name', default='DRAEM_Denoising_reconstruction', choices=['retina, liver, brain, head', 'chest'], action='store')
-    parser.add_argument('--dataset_name', default='hist_DIY', choices=['hist_DIY', 'Brain_MRI', 'Head_CT', 'CovidX', 'RESC_average', 'Atlas_train+LiTs_test_crop'], action='store')
+    parser.add_argument('--gpu_id', default=['0','1'], action='store', type=str, required=False)
+    parser.add_argument('--experiment_name', default='DRAEM_Denoising_reconstruction', choices=['DRAEM_Denoising_reconstruction, RandomShape_reconstruction, brain, head'], action='store')
+    parser.add_argument('--colorRange', default=100, action='store')
+    parser.add_argument('--threshold', default=200, action='store')
+    parser.add_argument('--dataset_name', default='hist_DIY', choices=['hist_DIY', 'Brain_MRI', 'CovidX', 'RESC_average'], action='store')
     parser.add_argument('--model', default='DRAEM', choices=['ws_skip_connection', 'DRAEM_reconstruction', 'DRAEM_discriminitive'], action='store')
-    parser.add_argument('--process_method', default='Guassian_noise', choices=['none', 'Gaussian_noise', 'Gaussian_noise+Cutpaste+RandomShape', 'DRAEM_tumor', 'Simplex_noise', 'Simplex_noise_best_best'], action='store')
-    parser.add_argument('--resume_training', default = True, action='store', type=int)
+    parser.add_argument('--process_method', default='Gaussian_noise', choices=['none', 'Guassian_noise', 'DRAEM', 'Simplex_noise'], action='store')
+    parser.add_argument('--multi_layer', default=False, action='store')
+    parser.add_argument('--resume_training', default=False, action='store')
     
     args = parser.parse_args()
     
