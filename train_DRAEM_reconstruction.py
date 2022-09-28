@@ -171,6 +171,7 @@ def train_on_device(args):
         model_segment.train()
         model_denoise.train()
         loss_list = []
+        best_dice = 0
         
         # evaluation_DRAEM(args, model_denoise, model_segment, test_dataloader, epoch, loss_l1, run_name)
         # for img, label, img_path in train_dataloader:         
@@ -266,6 +267,14 @@ def train_on_device(args):
             torch.save({'model_denoise': model_denoise.state_dict(),
                         'model': model_segment.state_dict(),
                         'epoch': epoch}, ckp_path)
+            
+            if dice_value > best_dice:
+                best_dice = dice_value
+                torch.save({'model_denoise': model_denoise.state_dict(),
+                        'model': model_segment.state_dict(),
+                        'epoch': epoch,
+                        'dice': dice_value}, ckp_path.replace('last', 'best'))
+                
         
         
 
@@ -291,9 +300,9 @@ if __name__=="__main__":
     # need to be changed/checked every time
     parser.add_argument('--bs', default = 8, action='store', type=int)
     parser.add_argument('--gpu_id', default=['0','1'], action='store', type=str, required=False)
-    parser.add_argument('--experiment_name', default='DRAEM_Denoising_reconstruction_mask', choices=['DRAEM_Denoising_reconstruction, liver, brain, head'], action='store')
-    parser.add_argument('--colorRange', default=120, action='store')
-    parser.add_argument('--threshold', default=220, action='store')
+    parser.add_argument('--experiment_name', default='DRAEM_Denoising_reconstruction', choices=['DRAEM_Denoising_reconstruction, liver, brain, head'], action='store')
+    parser.add_argument('--colorRange', default=100, action='store')
+    parser.add_argument('--threshold', default=200, action='store')
     parser.add_argument('--dataset_name', default='hist_DIY', choices=['hist_DIY', 'Brain_MRI', 'CovidX', 'RESC_average'], action='store')
     parser.add_argument('--model', default='DRAEM', choices=['ws_skip_connection', 'DRAEM_reconstruction', 'DRAEM_discriminitive'], action='store')
     parser.add_argument('--process_method', default='Gaussian_noise', choices=['none', 'Guassian_noise', 'DRAEM', 'Simplex_noise'], action='store')

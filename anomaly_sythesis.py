@@ -162,8 +162,8 @@ def randomShape(img, scaleUpper=255, threshold=200):
     result = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, kernel)
     result = cv2.morphologyEx(result, cv2.MORPH_CLOSE, kernel)
 
-    # mask, start, stop = getBbox(img)
-    mask = img > 0.01
+    mask, start, stop = getBbox(img)
+    # mask = img > 0.01
     
     anomalyMask = mask * result
     anomalyMask = np.where(anomalyMask > 0, 1, 0)
