@@ -330,6 +330,8 @@ def evaluation_reconstruction(args, model, test_dataloader, epoch, loss_function
     pr_list_sp = []
     aupro_list = []
     pr_binary_list_px = []
+    img_paths, preds, gts, intersections, dices, a_map_max, losses, losses_feature, losses_reconstruction = [], [], [], [], [], [], [], [], []
+
     
     with torch.no_grad():
         for img, gt, label, img_path, save in test_dataloader:
@@ -400,12 +402,26 @@ def evaluation_reconstruction(args, model, test_dataloader, epoch, loss_function
             pr_binary_list_px.extend(prediction_map.ravel())
             gt_list_sp.append(np.max(gt.astype(int)))
             pr_list_sp.append(np.max(difference))
+            
+            intersection = (prediction_map.ravel() * gt.cpu().numpy().astype(int).ravel()).sum()
+            
+            img_paths.append(img_path[0].split('/')[-1])
+            preds.append(prediction_map.sum())
+            gts.append(gt.sum())
+            intersections.append(intersection)
+            dice_sample_value = dice(prediction_map, gt.squeeze(0).squeeze(0).cpu().numpy().astype(int))
+            # dices.append(dice(prediction_map, gt.squeeze(0).squeeze(0).cpu().numpy().astype(int)))
+            dices.append(dice_sample_value)
+            a_map_max.append(difference.max())
         
         # dice_value = mean(dice_error)
         dice_value = dice(np.array(gt_list_px), np.array(pr_binary_list_px))
         auroc_px = round(roc_auc_score(gt_list_px, pr_list_px), 3)
         auroc_sp = round(roc_auc_score(gt_list_sp, pr_list_sp), 3)
         
+        csv_path = os.path.join('/home/zhaoxiang/output', run_name, 'dice_results.csv')
+        df = pd.DataFrame({'img_path': img_paths, 'pred': preds, 'gt': gts, 'intersection': intersections, 'dice': dices, 'a_map_max': a_map_max, 'loss':losses, 'loss_feature': losses_feature, 'loss_reconstruction': losses_reconstruction})
+        df.to_csv(csv_path, index=False)
         
     return dice_value, auroc_px, auroc_sp
 
