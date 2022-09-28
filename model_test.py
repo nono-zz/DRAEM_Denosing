@@ -1,3 +1,4 @@
+from pyexpat import model
 from matplotlib.pyplot import gray
 import torch
 from torch.utils.data import DataLoader
@@ -20,7 +21,7 @@ import torch.nn.functional as F
 import random
 
 from dataloader_zzx import MVTecDataset
-from evaluation_mood import evaluation
+from evaluation_mood import evaluation, evaluation_reconstruction
 from cutpaste import CutPaste3Way, CutPasteUnion
 
 
@@ -124,41 +125,18 @@ def train_on_device(args):
     if 'label_dir' in locals():
         dirs = [train_dir, test_dir, label_dir]                
     
-    if args.model == 'resnet':
-        # classifier, bn = wide_resnet50_2(pretrained=False, num_classes=2)
-        classifier = resnet50(pretrained=False, num_classes = 2)
-        classifier = classifier.cuda()
-
-        bn = BN()
-        bn = bn.cuda()
-        decoder = de_wide_resnet50_2(pretrained=False)              # de_wide_resnet50指的是反向resnet？
-        decoder = decoder.cuda()
-    elif args.model == 'DRAEM': 
-        from model_noise import UNet
-        from model import ReconstructiveSubNetwork, DiscriminativeSubNetwork
-        n_input = 1
-        n_classes = 1           # the target is the reconstructed image
-        depth = 4
-        wf = 6
-        model_denoise = UNet(in_channels=n_input, n_classes=n_classes, norm="group", up_mode="upconv", depth=depth, wf=wf, padding=True).cuda()
-        model_segment = DiscriminativeSubNetwork(in_channels=2, out_channels=2).cuda()
+    from model_noise import UNet
+    n_input = 1
+    n_classes = 1           # the target is the reconstructed image
+    depth = 4
+    wf = 6
+    model = UNet(in_channels=n_input, n_classes=n_classes, norm="group", up_mode="upconv", depth=depth, wf=wf, padding=True).cuda()
         
     # load pretrained teacher weights
-    ckp_teacher_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'checkpoints', run_name+'.pth')
-    classifier = torch.nn.DataParallel(classifier, device_ids=[0, 1])
+    ckp_path = os.path.join('/home/zhaoxiang', 'output', run_name, 'best.pth')
+    model = torch.nn.DataParallel(model, device_ids=[0, 1])
     # classifier.load_state_dict(torch.load(ckp_teacher_path))
-    classifier.load_state_dict(torch.load(ckp_teacher_path)())
-    
-    
-    # mount bn and decoder on 2 gpus
-    bn = torch.nn.DataParallel(bn, device_ids=[0, 1])
-    decoder = torch.nn.DataParallel(decoder, device_ids=[0, 1])
-    
-    # load bn and decoder weights
-    ckp_student_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'checkpoints', run_name+'student.pth')
-    bn.load_state_dict(torch.load(ckp_student_path)['bn'])
-    decoder.load_state_dict(torch.load(ckp_student_path)['decoder'])
-    
+    model.load_state_dict(torch.load(ckp_path)['model'])    
     test_data = MVTecDataset(root=main_path, transform = test_transform, gt_transform=gt_transform, phase='test', dirs = dirs, data_source=args.experiment_name, args = args)
         
     test_dataloader = torch.utils.data.DataLoader(test_data, batch_size = 1, shuffle = False)
@@ -166,18 +144,16 @@ def train_on_device(args):
     
     epoch = 'test'
         
-    classifier.eval()
-    bn.eval()
-    decoder.eval()
+    model.eval()
     
-    # for threshold in np.arange(0.010, 0.2, 0.002):
-    for threshold in np.arange(0.08, 0.10, 0.002):
-        dice_value, auroc_px, auroc_sp, aupro_px = evaluation(args, classifier, decoder, bn, test_dataloader, epoch, loss_function, run_name, threshold=threshold)
-        result_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'outputs', run_name, 'results.txt')
-        print('Threshold:{:.4f}, Pixel Auroc:{:.3f}, Sample Auroc{:.3f}, Pixel Aupro{:.3f}, Dice{:3f}'.format(threshold, auroc_px, auroc_sp, aupro_px, dice_value))
+    for threshold in np.arange(0.010, 0.2, 0.002):
+    # for threshold in np.arange(0.08, 0.10, 0.002):
+        dice_value, auroc_px, auroc_sp = evaluation_reconstruction(args, model, test_dataloader, epoch, loss_function, run_name, threshold=threshold)
+        result_path = os.path.join('/home/zhaoxiang', 'output', run_name, 'results.txt')
+        print('Threshold:{:.4f}, Pixel Auroc:{:.3f}, Sample Auroc{:.3f}, Dice{:3f}'.format(threshold, auroc_px, auroc_sp, dice_value))
         
         with open(result_path, 'a') as f:
-            f.writelines('Threshold:{:.4f}, Epoch:{}, Pixel Auroc:{:.3f}, Sample Auroc{:.3f}, Pixel Aupro{:.3f}, Dice:{:3f} \n'.format(threshold, epoch, auroc_px, auroc_sp, aupro_px, dice_value))     
+            f.writelines('Threshold:{:.4f}, Epoch:{}, Pixel Auroc:{:.3f}, Sample Auroc{:.3f}, Dice:{:3f} \n'.format(threshold, epoch, auroc_px, auroc_sp, dice_value))     
             # f.writelines('Pixel Auroc:{:.3f}, Sample Auroc{:.3f}, Pixel Aupro{:.3f}, Dice{:3f}'.format(auroc_px, auroc_sp, aupro_px, dice_value))                
         
         
