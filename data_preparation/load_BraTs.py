@@ -22,11 +22,11 @@ def load_nii(dir_path):
     training_filenames = filenames[:938]
     validation_filenames = filenames[938:938+62]
     testing_filenames = filenames[938+62:938+62+251]
-    # tot_filenames = [training_filenames, validation_filenames, testing_filenames]
-    # mode = ['train', 'val', 'test']
+    tot_filenames = [training_filenames, validation_filenames, testing_filenames]
+    mode = ['train', 'val', 'test']
     
-    tot_filenames = [validation_filenames, testing_filenames]
-    mode = ['val', 'test']
+    # tot_filenames = [validation_filenames, testing_filenames]
+    # mode = ['val', 'test']
     
     for index, filenames in enumerate(tot_filenames):
         for filename in filenames:
@@ -165,30 +165,52 @@ def gtUnify(gt_old_path, gt_new_path):
     grayUnified = np.where(gray>0, 255, 0)
     cv2.imwrite(gt_new_path, grayUnified)
 
+
+def gt_process(source_path, dst_path):
+    dirs = ['val_gt', 'test_gt']
+    for dirname in dirs:
+        dir_path = os.path.join(source_path, dirname)
+        new_dir_path = os.path.join(dst_path, dirname)
+        if not os.path.exists(new_dir_path):
+            os.makedirs(new_dir_path, exist_ok=True)
+
+        filenames = os.listdir(dir_path)
+        filenames.sort()
+        for filename in filenames:
+            old_path = os.path.join(dir_path, filename)
+            gray = cv2.imread(old_path, cv2.IMREAD_GRAYSCALE)
+            new_gray = np.where(gray>0, 255, 0)
+            new_path = os.path.join(new_dir_path, filename)
+
+            cv2.imwrite(new_path, new_gray)
+
+
+gt_process('/home/zhaoxiang/dataset/BraTs_multi_Gt', '/home/zhaoxiang/dataset/BraTs')
     
     
             
-# ## slice the 2Ds          
+## slice the 2Ds          
 # dir_path = '/home/datasets/BraTs/RSNA_ASNR_MICCAI_BraTS2021_TrainingData_16July2021'
+# dir_path = '/home/zhaoxiang/dataset/brain/RSNA_ASNR_MICCAI_BraTS2021_TrainingData_16July2021'
 # load_nii(dir_path)
 
 
-### hist_DIY images
+# ### hist_DIY images
 # modes = ['train', 'val', 'test']
-modes = ['val', 'test']
-for mode in modes:
-    source_path = '/home/zhaoxiang/dataset/BraTs/{}'.format(mode)
-    dst_path = '/home/zhaoxiang/dataset/BraTs_histDIY/{}'.format(mode)
+# # modes = ['val', 'test']
+# for mode in modes:
+#     source_path = '/home/zhaoxiang/dataset/BraTs/{}'.format(mode)
+#     dst_path = '/home/zhaoxiang/dataset/BraTs_histDIY/{}'.format(mode)
     
-    gt_source_path = '/home/zhaoxiang/dataset/BraTs/{}_gt'.format(mode)
-    gt_dst_path = '/home/zhaoxiang/dataset/BraTs_histDIY/{}_gt'.format(mode)
-    if not os.path.exists(dst_path):
-        os.makedirs(dst_path, exist_ok=True)
+#     gt_source_path = '/home/zhaoxiang/dataset/BraTs/{}_gt'.format(mode)
+#     gt_dst_path = '/home/zhaoxiang/dataset/BraTs_histDIY/{}_gt'.format(mode)
+#     if not os.path.exists(dst_path):
+#         os.makedirs(dst_path, exist_ok=True)
         
-    if not os.path.exists(gt_dst_path):
-        os.makedirs(gt_dst_path, exist_ok=True)
+#     if not os.path.exists(gt_dst_path):
+#         os.makedirs(gt_dst_path, exist_ok=True)
     
-    preprocess(source_path, dst_path, gt_source_path, gt_dst_path)
+#     preprocess(source_path, dst_path, gt_source_path, gt_dst_path)
         
 # ### unify all the gt colors
 # for mode in modes:
