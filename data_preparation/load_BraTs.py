@@ -1,5 +1,8 @@
 # requirement: install nibabel
+from asyncio.constants import DEBUG_STACK_DEPTH
 import os
+from re import I
+from symbol import del_stmt
 import nibabel as nib
 import matplotlib.pyplot as plt
 import matplotlib
@@ -158,7 +161,57 @@ def preprocess(source_path, dst_path, gt_source_path, gt_dst_path):
                 gt_old_path = os.path.join(gt_source_path, gt_name)
                 gt_new_path = os.path.join(gt_dst_path, gt_name)
                 gtUnify(gt_old_path, gt_new_path)
-            
+
+import os
+def deleteEmpty(source_path):
+    names = os.listdir(source_path)
+    names.sort()
+
+    for old_name in names:
+        old_path = os.path.join(source_path, old_name)
+        gray = cv2.imread(old_path, cv2.IMREAD_GRAYSCALE)
+        
+        # abandon empty images
+        if np.sum(gray)==0:
+            os.remove(old_path) 
+            if 'val' in source_path:
+                gt_path = old_path.replace('val', 'val_label').replace('flair', 'gt')
+                os.remove(gt_path)
+            if 'test' in source_path:
+                gt_path = old_path.replace('test', 'test_label').replace('flair', 'gt')
+                os.remove(gt_path)
+        else:
+            continue
+
+# deleteEmpty('/home/zhaoxiang/dataset/BraTs/train/good')
+# deleteEmpty('/home/zhaoxiang/dataset/BraTs/test')
+
+from random import sample
+import shutil
+def subsampleTest(source_path, dst_path):
+    
+
+    names = os.listdir(source_path)
+    names.sort()
+    print('test queue length before subsampling', len(names))           # 34800
+
+    ## subsampling to 1/30 length of the orginal test set
+
+    subsampleNames = sample(names, int(len(names)/30))
+    for name in subsampleNames:
+        img_name = name.replace('_flair.png', '') 
+        img_path = os.path.join(source_path, name)
+        gt_path = os.path.join(source_path.replace('rest', 'rest_label'), img_name+'_gt.png')
+
+        # move the files to the dst_path\
+        new_img_path = os.path.join(dst_path, name)
+        new_gt_path = os.path.join(dst_path.replace('test', 'test_label'), img_name+'_gt.png')
+
+        shutil.copyfile(img_path, new_img_path)
+        shutil.copyfile(gt_path, new_gt_path)
+        
+
+subsampleTest('/home/zhaoxiang/dataset/BraTs/rest', '/home/zhaoxiang/dataset/BraTs/test')
         
 def gtUnify(gt_old_path, gt_new_path):
     gray = cv2.imread(gt_old_path, cv2.IMREAD_GRAYSCALE)
@@ -185,7 +238,7 @@ def gt_process(source_path, dst_path):
             cv2.imwrite(new_path, new_gray)
 
 
-gt_process('/home/zhaoxiang/dataset/BraTs_multi_Gt', '/home/zhaoxiang/dataset/BraTs')
+# gt_process('/home/zhaoxiang/dataset/BraTs_multi_Gt', '/home/zhaoxiang/dataset/BraTs')
     
     
             

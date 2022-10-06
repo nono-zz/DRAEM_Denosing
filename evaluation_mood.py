@@ -350,6 +350,12 @@ def evaluation_reconstruction(args, model, test_dataloader, epoch, loss_function
             names = ['liver_1_59', 'liver_1_60', 'liver_1_66', 'liver_1_67', 'liver_2_415', 'liver_2_452', 'liver_3_394', 'liver_4_566', 'liver_4_457', 'liver_6_396', 'liver_8_448', 'liver_7_487', 'liver_10_328', 
                             'liver_10_335' 'liver_10_356', 'liver_10_379',  'liver_10_295', 'liver_10_422' , 'liver_16_374', 'liver_16_409', 'liver_18_413', 'liver_19_440', 'liver_20_487', 'liver_21_388', 'liver_23_335',
                             'liver_26_317', 'liver_27_414', 'liver_27_559', 'liver_13_393', 'liver_12_412', 'liver_11_413']
+            if args.dataset_name == 'BraTs':
+                names = ['01418_88', '01419_68', '01425_67', '01427_72', '01429_65', '01433_95', '01400_95', '01444_52',
+                            '01446_84','01449_97', '01448_80', '01453_83', '01454_102', '01458_96', '01465_113', '01467_78',
+                            '01474_78', '01473_90', '01476_71', '01484_85', '01487_73', '-1501_57','01517_81', '01554_65',
+                            '01573_103', '01575_90', '01633_62']
+            
             gt = gt[0,0,:,:].to('cpu').detach().numpy()  
             
             for name in names:

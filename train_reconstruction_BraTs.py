@@ -163,7 +163,11 @@ def train_on_device(args):
         model.train()
         loss_list = []
         # dice_value, auroc_px, auroc_sp = evaluation_reconstruction(args, model, test_dataloader, epoch, loss_l1, run_name)
-        for img, aug, anomaly_mask in tqdm(train_dataloader):
+        iteration = 0
+        # for img, aug, anomaly_mask in tqdm(train_dataloader):
+        while iteration < 100:
+            iteration += 1
+            img, aug, anomaly_mask = next(iter(train_dataloader))
             img = torch.reshape(img, (-1, 1, args.img_size, args.img_size))
             aug = torch.reshape(aug, (-1, 1, args.img_size, args.img_size))
             anomaly_mask = torch.reshape(anomaly_mask, (-1, 1, args.img_size, args.img_size))
