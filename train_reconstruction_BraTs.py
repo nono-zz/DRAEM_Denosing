@@ -165,15 +165,15 @@ def train_on_device(args):
     
     for epoch in range(last_epoch, args.epochs):
         # evaluation(args, model_denoise, model_segment, test_dataloader, epoch, loss_l1, visualizer, run_name)
-        dice_value, auroc_px, auroc_sp, average_precesion = evaluation_reconstruction_AP(args, model, test_dataloader, epoch, loss_l1, run_name)
+        # dice_value, auroc_px, auroc_sp, average_precesion = evaluation_reconstruction_AP(args, model, test_dataloader, epoch, loss_l1, run_name)
         
         model.train()
         loss_list = []
-        # dice_value, auroc_px, auroc_sp = evaluation_reconstruction(args, model, test_dataloader, epoch, loss_l1, run_name)
         iteration = 0
-        for iteration, (img, aug, anomaly_mask) in enumerate(train_dataloader):
-            if iteration > 100:
-                break
+        # for iteration, (img, aug, anomaly_mask) in enumerate(train_dataloader):
+        #     if iteration > 100:
+        #         break
+        for img, aug, anomaly_mask in train_dataloader:
             # img, aug, anomaly_mask = next(data_generator)
             img = torch.reshape(img, (-1, 1, args.img_size, args.img_size))
             aug = torch.reshape(aug, (-1, 1, args.img_size, args.img_size))
@@ -291,7 +291,7 @@ if __name__=="__main__":
     # need to be changed/checked every time
     parser.add_argument('--bs', default = 32, action='store', type=int)
     parser.add_argument('--gpu_id', default=['0','1'], action='store', type=str, required=False)
-    parser.add_argument('--experiment_name', default='ColorJitter_reconstruction', choices=['DRAEM_Denoising_reconstruction, RandomShape_reconstruction, brain, head'], action='store')
+    parser.add_argument('--experiment_name', default='ColorJitter_reconstruction_full_train', choices=['DRAEM_Denoising_reconstruction, RandomShape_reconstruction, brain, head'], action='store')
     parser.add_argument('--colorRange', default=100, action='store')
     parser.add_argument('--threshold', default=200, action='store')
     parser.add_argument('--dataset_name', default='BraTs', choices=['hist_DIY', 'Brain_MRI', 'CovidX', 'RESC_average','BraTs'], action='store')

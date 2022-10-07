@@ -343,7 +343,7 @@ def evaluation_reconstruction(args, model, test_dataloader, epoch, loss_function
             # check if img is RGB
             rec = model(img)
             
-            initial_feature = img
+            initial_feature = img.to('cpu').detach().numpy()
 
             difference = cal_distance_map(rec[0,0,:,:].to('cpu').detach().numpy(), img[0,0,:,:].to('cpu').detach().numpy())            
             # names = ['liver_1_60', 'liver_2_452', 'liver_3_394', 'liver_4_457', 'liver_6_396', 'liver_7_487', 'liver_10_379'] 
@@ -367,7 +367,7 @@ def evaluation_reconstruction(args, model, test_dataloader, epoch, loss_function
                     reconstruction_path = os.path.join(save_dir, 'reconstruction_{}.png'.format(epoch))
                     gt_path = os.path.join(save_dir, 'gt.png')
                     anomaly_map_rgb_path = os.path.join(save_dir, 'combine.png')
-                    evaluation_reconstructionfeature = np.transpose(initial_feature, (1,2,0))
+                    # evaluation_reconstructionfeature = np.transpose(initial_feature, (1,2,0))
                     cv2.imwrite(initial_feature_path, initial_feature*255)
                     
                     rec = min_max_norm(rec[0,:,:,:].to('cpu').detach().numpy())
