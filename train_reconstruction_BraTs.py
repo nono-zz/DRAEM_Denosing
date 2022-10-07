@@ -16,7 +16,7 @@ import torch.nn.functional as F
 import random
 
 from dataloader_zzx import MVTecDataset, Medical_dataset
-from evaluation_mood import evaluation, evaluation_DRAEM, evaluation_reconstruction
+from evaluation_mood import evaluation, evaluation_DRAEM, evaluation_reconstruction, evaluation_reconstruction_AP
 from cutpaste import CutPaste3Way, CutPasteUnion
 
 from model import ReconstructiveSubNetwork, DiscriminativeSubNetwork
@@ -157,17 +157,24 @@ def train_on_device(args):
     loss_focal = FocalLoss()
     loss_dice = DiceLoss()
     loss_diceBCE = DiceBCELoss()
+
+    best_sample_AUROC = 0 
+    best_ap = 0
+    
+    # data_generator = iter(train_dataloader)
     
     for epoch in range(last_epoch, args.epochs):
         # evaluation(args, model_denoise, model_segment, test_dataloader, epoch, loss_l1, visualizer, run_name)
+        dice_value, auroc_px, auroc_sp, average_precesion = evaluation_reconstruction_AP(args, model, test_dataloader, epoch, loss_l1, run_name)
+        
         model.train()
         loss_list = []
         # dice_value, auroc_px, auroc_sp = evaluation_reconstruction(args, model, test_dataloader, epoch, loss_l1, run_name)
         iteration = 0
-        # for img, aug, anomaly_mask in tqdm(train_dataloader):
-        while iteration < 100:
-            iteration += 1
-            img, aug, anomaly_mask = next(iter(train_dataloader))
+        for iteration, (img, aug, anomaly_mask) in enumerate(train_dataloader):
+            if iteration > 100:
+                break
+            # img, aug, anomaly_mask = next(data_generator)
             img = torch.reshape(img, (-1, 1, args.img_size, args.img_size))
             aug = torch.reshape(aug, (-1, 1, args.img_size, args.img_size))
             anomaly_mask = torch.reshape(anomaly_mask, (-1, 1, args.img_size, args.img_size))
@@ -231,19 +238,31 @@ def train_on_device(args):
                     
         #             error_list.append(loss.item())
                 
-        #         print('eval [{}/{}], error:{:.4f}'.format(args.epochs, epoch, mean(error_list)))
+        #         print('eval [{}/{}], error:{:.4f}'.format(args.epochs, epoch+,_
+        #  mean(error_list)))
                 # visualizer.plot_loss(mean(error_list), epoch, loss_name='L1_loss_eval')
                 # visualizer.visualize_image_batch(input, epoch, image_name='target_eval')
                 # visualizer.visualize_image_batch(output, epoch, image_name='output_eval')
                 
         if (epoch) % 10 == 0:
             model.eval()
-            dice_value, auroc_px, auroc_sp = evaluation_reconstruction(args, model, test_dataloader, epoch, loss_l1, run_name)
+            dice_value, auroc_px, auroc_sp, average_precesion = evaluation_reconstruction_AP(args, model, test_dataloader, epoch, loss_l1, run_name)
             result_path = os.path.join('/home/zhaoxiang/output', run_name, 'results.txt')
-            print('Pixel Auroc:{:.3f}, Sample Auroc{:.3f}, Dice{:3f}'.format(auroc_px, auroc_sp, dice_value))
+            print('Pixel Auroc:{:.3f}, Sample Auroc{:.3f}, Average Precesion{:3f}, Dice{:3f}'.format(auroc_px, auroc_sp, average_precesion, dice_value))
             
+
+            if auroc_sp > best_sample_AUROC:
+                best_sample_AUROC = auroc_sp
+                torch.save({'model': model.state_dict(),
+                        'epoch': epoch}, ckp_path.replace('last', 'best_sample'))
+
+            if average_precesion > best_ap:
+                best_ap = average_precesion
+                torch.save({'model': model.state_dict(),
+                        'epoch': epoch}, ckp_path.replace('last', 'best_ap'))
+
             with open(result_path, 'a') as f:
-                f.writelines('Epoch:{}, Pixel Auroc:{:.3f}, Sample Auroc{:.3f}, Dice:{:3f} \n'.format(epoch, auroc_px, auroc_sp, dice_value))   
+                f.writelines('Epoch:{}, Pixel Auroc:{:.3f}, Sample Auroc{:.3f}, Average Precesion{:3f}, Dice:{:3f} \n'.format(epoch, auroc_px, auroc_sp, average_precesion, dice_value))   
             
             torch.save({'model': model.state_dict(),
                         'epoch': epoch}, ckp_path)
