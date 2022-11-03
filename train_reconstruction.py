@@ -200,6 +200,9 @@ def train_on_device(args):
             
         print('epoch [{}/{}], loss:{:.4f}'.format(args.epochs, epoch, mean(loss_list)))
         
+        with open(result_path, 'a') as f:
+            f.writelines('epoch [{}/{}], loss:{:.4f}'.format(args.epochs, epoch, mean(loss_list)))   
+                
         # with torch.no_grad():
         #     if (epoch) % 3 == 0:
         #         model_segment.eval()
@@ -276,7 +279,7 @@ if __name__=="__main__":
     parser.add_argument('--bs', default = 8, action='store', type=int)
     parser.add_argument('--gpu_id', default=['0','1'], action='store', type=str, required=False)
     parser.add_argument('--experiment_name', default='ColorJitter_reconstruction', choices=['DRAEM_Denoising_reconstruction, RandomShape_reconstruction, brain, head'], action='store')
-    parser.add_argument('--colorRange', default=100, action='store')
+    parser.add_argument('--colorRange', default=30, action='store')
     parser.add_argument('--threshold', default=200, action='store')
     parser.add_argument('--dataset_name', default='hist_DIY', choices=['hist_DIY', 'Brain_MRI', 'CovidX', 'RESC_average'], action='store')
     parser.add_argument('--model', default='ws_skip_connection', choices=['ws_skip_connection', 'DRAEM_reconstruction', 'DRAEM_discriminitive'], action='store')
