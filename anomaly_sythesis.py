@@ -5,7 +5,6 @@ import torch
 import cv2
 import random
 from PIL import Image, ImageOps
-from skimage.draw import random_shapes
 
 from cutpaste_sythesis import CutPasteUnion, CutPaste3Way
 from torchvision import transforms
