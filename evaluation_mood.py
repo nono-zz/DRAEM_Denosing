@@ -369,9 +369,9 @@ def evaluation_reconstruction(args, model, test_dataloader, epoch, loss_function
                     gt_path = os.path.join(save_dir, 'gt.png')
                     anomaly_map_rgb_path = os.path.join(save_dir, 'combine.png')
                     # evaluation_reconstructionfeature = np.transpose(initial_feature, (1,2,0))
-                    cv2.imwrite(initial_feature_path, initial_feature*255)
+                    cv2.imwrite(initial_feature_path, initial_feature[0,0,:,:]*255)
                     
-                    rec = min_max_norm(rec[0,:,:,:].to('cpu').detach().numpy())
+                    rec = rec[0,:,:,:].to('cpu').detach().numpy()
                     rec = np.transpose(rec, (1,2,0))
                     cv2.imwrite(reconstruction_path, rec*255)
                     
@@ -411,7 +411,8 @@ def evaluation_reconstruction(args, model, test_dataloader, epoch, loss_function
         df = pd.DataFrame({'img_path': img_paths, 'pred': preds, 'gt': gts, 'intersection': intersections, 'dice': dices, 'a_map_max': a_map_max})
         df.to_csv(csv_path, index=False)
         
-    return dice_value, auroc_px, auroc_sp
+    # return dice_value, auroc_px, auroc_sp
+    return dice_value, auroc_sp
 
 
 def evaluation_reconstruction_AP(args, model, test_dataloader, epoch, loss_function, run_name, threshold = 0.1):
