@@ -343,13 +343,16 @@ def evaluation_reconstruction(args, model, test_dataloader, epoch, loss_function
             # check if img is RGB
             rec = model(img)
             
-            initial_feature = img
+            initial_feature = img.to('cpu').detach().numpy()
 
             difference = cal_distance_map(rec[0,0,:,:].to('cpu').detach().numpy(), img[0,0,:,:].to('cpu').detach().numpy())            
             # names = ['liver_1_60', 'liver_2_452', 'liver_3_394', 'liver_4_457', 'liver_6_396', 'liver_7_487', 'liver_10_379'] 
             names = ['liver_1_59', 'liver_1_60', 'liver_1_66', 'liver_1_67', 'liver_2_415', 'liver_2_452', 'liver_3_394', 'liver_4_566', 'liver_4_457', 'liver_6_396', 'liver_8_448', 'liver_7_487', 'liver_10_328', 
                             'liver_10_335' 'liver_10_356', 'liver_10_379',  'liver_10_295', 'liver_10_422' , 'liver_16_374', 'liver_16_409', 'liver_18_413', 'liver_19_440', 'liver_20_487', 'liver_21_388', 'liver_23_335',
-                            'liver_26_317', 'liver_27_414', 'liver_27_559', 'liver_13_393', 'liver_12_412', 'liver_11_413']
+                            '01446_84','01449_97', '01448_80', '01453_83', '01454_102', '01458_96', '01465_113', '01467_78',
+                            '01474_78', '01473_90', '01476_71', '01484_85', '01487_73', '-1501_57','01517_81', '01554_65',
+                            '01573_103', '01575_90', '01633_62']
+            
             gt = gt[0,0,:,:].to('cpu').detach().numpy()  
             
             for name in names:
@@ -364,13 +367,7 @@ def evaluation_reconstruction(args, model, test_dataloader, epoch, loss_function
                     reconstruction_path = os.path.join(save_dir, 'reconstruction_{}.png'.format(epoch))
                     gt_path = os.path.join(save_dir, 'gt.png')
                     anomaly_map_rgb_path = os.path.join(save_dir, 'combine.png')
-                    
-                    if not os.path.exists(save_dir):
-                        pathlib.Path(save_dir).mkdir(parents=True, exist_ok=True)
-                        
-                    # save inital_feature and reconstruction
-                    initial_feature = min_max_norm(initial_feature[0,:,:,:].to('cpu').detach().numpy())
-                    initial_feature = np.transpose(initial_feature, (1,2,0))
+                    # evaluation_reconstructionfeature = np.transpose(initial_feature, (1,2,0))
                     cv2.imwrite(initial_feature_path, initial_feature*255)
                     
                     rec = min_max_norm(rec[0,:,:,:].to('cpu').detach().numpy())
@@ -425,6 +422,119 @@ def evaluation_reconstruction(args, model, test_dataloader, epoch, loss_function
         df.to_csv(csv_path, index=False)
         
     return dice_value, auroc_px, auroc_sp
+
+
+def evaluation_reconstruction_AP(args, model, test_dataloader, epoch, loss_function, run_name, threshold = 0.1):
+    
+    model.eval()
+    
+    dice_error = []
+        
+    gt_list_px = []
+    pr_list_px = []
+    gt_list_sp = []
+    pr_list_sp = []
+    aupro_list = []
+    pr_binary_list_px = []
+    img_paths, preds, gts, intersections, dices, a_map_max, losses, losses_feature, losses_reconstruction = [], [], [], [], [], [], [], [], []
+
+    with torch.no_grad():
+        for img, gt, label, img_path, save in test_dataloader:
+
+            img = img.cuda()
+            gt[gt > 0.1] = 1
+            gt[gt <= 0.1] = 0
+            # check if img is RGB
+            rec = model(img)
+            
+            initial_feature = img
+
+            difference = cal_distance_map(rec[0,0,:,:].to('cpu').detach().numpy(), img[0,0,:,:].to('cpu').detach().numpy())            
+            # names = ['liver_1_60', 'liver_2_452', 'liver_3_394', 'liver_4_457', 'liver_6_396', 'liver_7_487', 'liver_10_379'] 
+            names = ['liver_1_59', 'liver_1_60', 'liver_1_66', 'liver_1_67', 'liver_2_415', 'liver_2_452', 'liver_3_394', 'liver_4_566', 'liver_4_457', 'liver_6_396', 'liver_8_448', 'liver_7_487', 'liver_10_328', 
+                            'liver_10_335' 'liver_10_356', 'liver_10_379',  'liver_10_295', 'liver_10_422' , 'liver_16_374', 'liver_16_409', 'liver_18_413', 'liver_19_440', 'liver_20_487', 'liver_21_388', 'liver_23_335',
+                            'liver_26_317', 'liver_27_414', 'liver_27_559', 'liver_13_393', 'liver_12_412', 'liver_11_413']
+            if args.dataset_name == 'BraTs':
+                names = ['01418_88', '01419_68', '01425_67', '01427_72', '01429_65', '01433_95', '01400_95', '01444_52',
+                            '01446_84','01449_97', '01448_80', '01453_83', '01454_102', '01458_96', '01465_113', '01467_78',
+                            '01474_78', '01473_90', '01476_71', '01484_85', '01487_73', '-1501_57','01517_81', '01554_65',
+                            '01573_103', '01575_90', '01633_62']
+            
+            gt = gt[0,0,:,:].to('cpu').detach().numpy()  
+            
+            for name in names:
+                if name in img_path[0]:
+                    save_dir = os.path.join('/home/zhaoxiang', 'output', run_name, name)
+                    
+                    
+                    a_map_path = os.path.join(save_dir, 'a_map_{}.png'.format(epoch))
+                    p_map_path = os.path.join(save_dir, 'p_map_{}.png'.format(epoch))
+                    d_map_path = os.path.join(save_dir, 'd_map_{}.png'.format(epoch))
+                    initial_feature_path = os.path.join(save_dir, 'raw.png')
+                    reconstruction_path = os.path.join(save_dir, 'reconstruction_{}.png'.format(epoch))
+                    gt_path = os.path.join(save_dir, 'gt.png')
+                    anomaly_map_rgb_path = os.path.join(save_dir, 'combine.png')
+                    
+                    if not os.path.exists(save_dir):
+                        pathlib.Path(save_dir).mkdir(parents=True, exist_ok=True)
+                        
+                    # save inital_feature and reconstruction
+                    initial_feature = min_max_norm(initial_feature[0,:,:,:].to('cpu').detach().numpy())
+                    initial_feature = np.transpose(initial_feature, (1,2,0))
+                    cv2.imwrite(initial_feature_path, initial_feature*255)
+                    
+                    rec = min_max_norm(rec[0,:,:,:].to('cpu').detach().numpy())
+                    rec = np.transpose(rec, (1,2,0))
+                    cv2.imwrite(reconstruction_path, rec*255)
+                    
+                    cv2.imwrite(gt_path, gt * 255)
+                    # cv2.imwrite(d_map_path, difference*255)
+                                        
+                    # combine
+                    # label = cv2.imread(gt_path, cv2.IMREAD_GRAYSCALE)
+                    # anomaly_map_rgb = cv2.imread(a_map_path)
+                    # label = cv2.resize(label, [256, 256])                    
+                    # anomaly_map_rgb[:,:,1] = label
+                    # cv2.imwrite(anomaly_map_rgb_path, anomaly_map_rgb)
+                            
+                            
+                    prediction_map = np.where(difference > threshold, 255, 0)
+                    cv2.imwrite(a_map_path, difference*255)
+                    cv2.imwrite(p_map_path, prediction_map)
+            
+            # anomaly_map = gaussian_filter(anomaly_map, sigma=4)
+            # prediction_map = np.where(min_max_norm(anomaly_map) > threshold, 1, 0)
+            prediction_map = np.where(difference > threshold, 1, 0)
+
+        
+            gt_list_px.extend(gt.astype(int).ravel())
+            pr_list_px.extend(difference.ravel())
+            pr_binary_list_px.extend(prediction_map.ravel())
+            gt_list_sp.append(np.max(gt.astype(int)))
+            pr_list_sp.append(np.max(difference))
+            
+            intersection = (prediction_map.ravel() * gt.astype(int).ravel()).sum()
+            
+            img_paths.append(img_path[0].split('/')[-1])
+            preds.append(prediction_map.sum())
+            gts.append(gt.sum())
+            intersections.append(intersection)
+            dice_sample_value = dice(prediction_map, gt)
+            # dices.append(dice(prediction_map, gt.squeeze(0).squeeze(0).cpu().numpy().astype(int)))
+            dices.append(dice_sample_value)
+            a_map_max.append(difference.max())
+        
+        # dice_value = mean(dice_error)
+        dice_value = dice(np.array(gt_list_px), np.array(pr_binary_list_px))
+        auroc_px = round(roc_auc_score(gt_list_px, pr_list_px), 3)
+        auroc_sp = round(roc_auc_score(gt_list_sp, pr_list_sp), 3)
+        Average_precesion = round(average_precision_score(gt_list_px, pr_list_px), 3)
+        
+        csv_path = os.path.join('/home/zhaoxiang/output', run_name, 'dice_results.csv')
+        df = pd.DataFrame({'img_path': img_paths, 'pred': preds, 'gt': gts, 'intersection': intersections, 'dice': dices, 'a_map_max': a_map_max})
+        df.to_csv(csv_path, index=False)
+        
+    return dice_value, auroc_px, auroc_sp, Average_precesion
 
 def compute_pro(masks: ndarray, amaps: ndarray, num_th: int = 200) -> None:
     
