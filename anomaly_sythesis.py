@@ -219,7 +219,7 @@ def colorJitterRandom(img, colorRange = 150, colorjitterScale=0, threshold=200):
     # img = cv2.imread(img_path, cv2.IMREAD_GRAYSCALE)
     img = cv2.resize(img, [256, 256])
 
-    while abs(colorjitterScale) < 50:
+    while abs(colorjitterScale) < 50:        # from 50 to 5
         colorjitterScale = random.uniform(-colorRange,colorRange)
         
     color_mask = np.ones_like(img) * colorjitterScale

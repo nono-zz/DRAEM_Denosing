@@ -369,10 +369,9 @@ def evaluation_reconstruction(args, model, test_dataloader, epoch, loss_function
                     gt_path = os.path.join(save_dir, 'gt.png')
                     anomaly_map_rgb_path = os.path.join(save_dir, 'combine.png')
                     # evaluation_reconstructionfeature = np.transpose(initial_feature, (1,2,0))
-                    cv2.imwrite(initial_feature_path, initial_feature[0,0,:,:]*255)
+                    cv2.imwrite(initial_feature_path, initial_feature*255)
                     
-                    # rec = min_max_norm(rec[0,:,:,:].to('cpu').detach().numpy())
-                    rec = rec[0,:,:,:].to('cpu').detach().numpy()
+                    rec = min_max_norm(rec[0,:,:,:].to('cpu').detach().numpy())
                     rec = np.transpose(rec, (1,2,0))
                     cv2.imwrite(reconstruction_path, rec*255)
                     
@@ -405,15 +404,14 @@ def evaluation_reconstruction(args, model, test_dataloader, epoch, loss_function
         
         # dice_value = mean(dice_error)
         dice_value = dice(np.array(gt_list_px), np.array(pr_binary_list_px))
-        # auroc_px = round(roc_auc_score(gt_list_px, pr_list_px), 3)
+        auroc_px = round(roc_auc_score(gt_list_px, pr_list_px), 3)
         auroc_sp = round(roc_auc_score(gt_list_sp, pr_list_sp), 3)
         
         csv_path = os.path.join('/home/zhaoxiang/output', run_name, 'dice_results.csv')
         df = pd.DataFrame({'img_path': img_paths, 'pred': preds, 'gt': gts, 'intersection': intersections, 'dice': dices, 'a_map_max': a_map_max})
         df.to_csv(csv_path, index=False)
         
-    # return dice_value, auroc_px, auroc_sp
-    return dice_value, auroc_sp
+    return dice_value, auroc_px, auroc_sp
 
 
 def evaluation_reconstruction_AP(args, model, test_dataloader, epoch, loss_function, run_name, threshold = 0.1):

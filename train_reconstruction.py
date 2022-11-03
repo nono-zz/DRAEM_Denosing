@@ -144,7 +144,7 @@ def train_on_device(args):
     val_data = MVTecDataset(root=main_path, transform = test_transform, gt_transform=gt_transform, phase='test', dirs = dirs, data_source=args.experiment_name, args = args)
     test_data = MVTecDataset(root=main_path, transform = test_transform, gt_transform=gt_transform, phase='test', dirs = dirs, data_source=args.experiment_name, args = args)
         
-    train_dataloader = torch.utils.data.DataLoader(train_data, batch_size = args.bs, shuffle=False)
+    train_dataloader = torch.utils.data.DataLoader(train_data, batch_size = args.bs, shuffle=True)
     val_dataloader = torch.utils.data.DataLoader(val_data, batch_size = args.bs, shuffle = False)
     test_dataloader = torch.utils.data.DataLoader(test_data, batch_size = 1, shuffle = False)
         
@@ -160,6 +160,8 @@ def train_on_device(args):
     
     for epoch in range(last_epoch, args.epochs):
         # evaluation(args, model_denoise, model_segment, test_dataloader, epoch, loss_l1, visualizer, run_name)
+        # evaluation_reconstruction(args, model, test_dataloader, epoch, loss_l1, run_name)
+        
         model.train()
         loss_list = []
         # dice_value, auroc_px, auroc_sp = evaluation_reconstruction(args, model, test_dataloader, epoch, loss_l1, run_name)
@@ -234,12 +236,17 @@ def train_on_device(args):
                 
         if (epoch) % 10 == 0:
             model.eval()
-            dice_value, auroc_px, auroc_sp = evaluation_reconstruction(args, model, test_dataloader, epoch, loss_l1, run_name)
+            # dice_value, auroc_px, auroc_sp = evaluation_reconstruction(args, model, test_dataloader, epoch, loss_l1, run_name)
+            # result_path = os.path.join('/home/zhaoxiang/output', run_name, 'results.txt')
+            # print('Pixel Auroc:{:.3f}, Sample Auroc{:.3f}, Dice{:3f}'.format(auroc_px, auroc_sp, dice_value))
+            
+            dice_value, auroc_sp = evaluation_reconstruction(args, model, test_dataloader, epoch, loss_l1, run_name)
             result_path = os.path.join('/home/zhaoxiang/output', run_name, 'results.txt')
-            print('Pixel Auroc:{:.3f}, Sample Auroc{:.3f}, Dice{:3f}'.format(auroc_px, auroc_sp, dice_value))
+            print('Sample Auroc{:.3f}, Dice{:3f}'.format(auroc_sp, dice_value))
             
             with open(result_path, 'a') as f:
-                f.writelines('Epoch:{}, Pixel Auroc:{:.3f}, Sample Auroc{:.3f}, Dice:{:3f} \n'.format(epoch, auroc_px, auroc_sp, dice_value))   
+                # f.writelines('Epoch:{}, Pixel Auroc:{:.3f}, Sample Auroc{:.3f}, Dice:{:3f} \n'.format(epoch, auroc_px, auroc_sp, dice_value))   
+                f.writelines('Epoch:{}, Sample Auroc{:.3f}, Dice:{:3f} \n'.format(epoch, auroc_sp, dice_value))   
             
             torch.save({'model': model.state_dict(),
                         'epoch': epoch}, ckp_path)
@@ -271,7 +278,7 @@ if __name__=="__main__":
     parser.add_argument('--experiment_name', default='ColorJitter_reconstruction', choices=['DRAEM_Denoising_reconstruction, RandomShape_reconstruction, brain, head'], action='store')
     parser.add_argument('--colorRange', default=30, action='store')
     parser.add_argument('--threshold', default=200, action='store')
-    parser.add_argument('--dataset_name', default='initial_hue', choices=['hist_DIY', 'Brain_MRI', 'CovidX', 'RESC_average'], action='store')
+    parser.add_argument('--dataset_name', default='hist_DIY', choices=['hist_DIY', 'Brain_MRI', 'CovidX', 'RESC_average'], action='store')
     parser.add_argument('--model', default='ws_skip_connection', choices=['ws_skip_connection', 'DRAEM_reconstruction', 'DRAEM_discriminitive'], action='store')
     parser.add_argument('--process_method', default='ColorJitter', choices=['none', 'Guassian_noise', 'DRAEM', 'Simplex_noise'], action='store')
     parser.add_argument('--multi_layer', default=False, action='store')
