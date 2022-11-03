@@ -83,7 +83,7 @@ def train_on_device(args):
         os.makedirs(args.log_path)
 
     # run_name = args.experiment_name + '_' +str(args.lr)+'_'+str(args.epochs)+'_bs'+str(args.bs)+"_"+"Guassian_blur"
-    run_name = args.experiment_name + '_' +str(args.lr)+'_'+str(args.epochs)+'_colorRange'+'_'+str(args.colorRange)+'_threshold'+'_'+str(args.threshold)+"_" + args.model + "_" + args.process_method
+    run_name = args.experiment_name + '_' + args.dataset_name + '_' +str(args.lr)+'_'+str(args.epochs)+'_colorRange'+'_'+str(args.colorRange)+'_threshold'+'_'+str(args.threshold)+"_" + args.model + "_" + args.process_method
 
     main_path = '/home/zhaoxiang/dataset/{}'.format(args.dataset_name)
     
@@ -271,7 +271,7 @@ if __name__=="__main__":
     parser.add_argument('--experiment_name', default='ColorJitter_reconstruction', choices=['DRAEM_Denoising_reconstruction, RandomShape_reconstruction, brain, head'], action='store')
     parser.add_argument('--colorRange', default=100, action='store')
     parser.add_argument('--threshold', default=200, action='store')
-    parser.add_argument('--dataset_name', default='hist_DIY', choices=['hist_DIY', 'Brain_MRI', 'CovidX', 'RESC_average'], action='store')
+    parser.add_argument('--dataset_name', default='initial_hue', choices=['hist_DIY', 'Brain_MRI', 'CovidX', 'RESC_average'], action='store')
     parser.add_argument('--model', default='ws_skip_connection', choices=['ws_skip_connection', 'DRAEM_reconstruction', 'DRAEM_discriminitive'], action='store')
     parser.add_argument('--process_method', default='ColorJitter', choices=['none', 'Guassian_noise', 'DRAEM', 'Simplex_noise'], action='store')
     parser.add_argument('--multi_layer', default=False, action='store')
