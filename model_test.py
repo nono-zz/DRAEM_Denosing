@@ -134,7 +134,7 @@ def train_on_device(args):
     model = UNet(in_channels=n_input, n_classes=n_classes, norm="group", up_mode="upconv", depth=depth, wf=wf, padding=True).cuda()
         
     # load pretrained teacher weights
-    ckp_path = os.path.join('/home/zhaoxiang', 'output', run_name, 'best_60_50.pth')
+    ckp_path = os.path.join('/home/zhaoxiang', 'output', run_name, 'best_74.pth')
     # ckp_path = os.path.join('/home/zhaoxiang', 'output', run_name, 'last.pth')
     model = torch.nn.DataParallel(model, device_ids=[0, 1])
     model.load_state_dict(torch.load(ckp_path)['model'])    
@@ -185,7 +185,7 @@ if __name__=="__main__":
     parser.add_argument('--experiment_name', default='ColorJitter_reconstruction', choices=['DRAEM_Denoising_reconstruction, RandomShape_reconstruction, brain, head'], action='store')
     parser.add_argument('--colorRange', default=100, action='store')
     parser.add_argument('--threshold', default=200, action='store')
-    parser.add_argument('--dataset_name', default='full_LiTs_histDIY', choices=['hist_DIY', 'full_LiTs_histDIY', 'Brain_MRI', 'CovidX', 'RESC_average'], action='store')
+    parser.add_argument('--dataset_name', default='LiTs_with_labels', choices=['hist_DIY', 'full_LiTs_histDIY', 'LiTs_with_labels', 'Brain_MRI', 'CovidX', 'RESC_average'], action='store')
     parser.add_argument('--model', default='ws_skip_connection', choices=['ws_skip_connection', 'DRAEM_reconstruction', 'DRAEM_discriminitive'], action='store')
     parser.add_argument('--process_method', default='ColorJitter', choices=['none', 'Guassian_noise', 'DRAEM', 'Simplex_noise'], action='store')
     parser.add_argument('--multi_layer', default=False, action='store')

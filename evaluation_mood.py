@@ -14,6 +14,7 @@ from scipy.ndimage import gaussian_filter
 from torch.nn import functional as F
 import pathlib
 import csv
+from tqdm import tqdm
 
 import os
 
@@ -335,7 +336,7 @@ def evaluation_reconstruction(args, model, test_dataloader, epoch, loss_function
 
     
     with torch.no_grad():
-        for img, gt, label, img_path, save in test_dataloader:
+        for img, gt, label, img_path, save in tqdm(test_dataloader):
 
             img = img.cuda()
             gt[gt > 0.1] = 1
@@ -517,15 +518,16 @@ def evaluation_reconstruction_AP(args, model, test_dataloader, epoch, loss_funct
         
         # dice_value = mean(dice_error)
         dice_value = dice(np.array(gt_list_px), np.array(pr_binary_list_px))
-        auroc_px = round(roc_auc_score(gt_list_px, pr_list_px), 3)
+        # auroc_px = round(roc_auc_score(gt_list_px, pr_list_px), 3)
         auroc_sp = round(roc_auc_score(gt_list_sp, pr_list_sp), 3)
-        Average_precesion = round(average_precision_score(gt_list_px, pr_list_px), 3)
+        # Average_precesion = round(average_precision_score(gt_list_px, pr_list_px), 3)
         
         csv_path = os.path.join('/home/zhaoxiang/output', run_name, 'dice_results.csv')
         df = pd.DataFrame({'img_path': img_paths, 'pred': preds, 'gt': gts, 'intersection': intersections, 'dice': dices, 'a_map_max': a_map_max})
         df.to_csv(csv_path, index=False)
         
-    return dice_value, auroc_px, auroc_sp, Average_precesion
+    # return dice_value, auroc_px, auroc_sp, Average_precesion
+    return dice_value, auroc_sp
 
 def compute_pro(masks: ndarray, amaps: ndarray, num_th: int = 200) -> None:
     
