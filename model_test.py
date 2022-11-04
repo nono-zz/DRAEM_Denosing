@@ -161,7 +161,7 @@ def train_on_device(args):
         
         auroc_sp = evaluation_reconstruction(args, model, test_dataloader, epoch, loss_l1, run_name, threshold = threshold)
         with open(result_path, 'a') as f:
-            f.writelines('Epoch:{}, Sample Auroc{:.3f}\n'.format(), epoch, auroc_sp) 
+            f.writelines('Epoch:{}, Sample Auroc{:.3f}\n'.format(epoch, auroc_sp)) 
         
 
 if __name__=="__main__":

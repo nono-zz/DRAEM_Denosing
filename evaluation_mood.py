@@ -334,10 +334,14 @@ def evaluation_reconstruction(args, model, test_dataloader, epoch, loss_function
     pr_binary_list_px = []
     img_paths, preds, gts, intersections, dices, a_map_max, losses, losses_feature, losses_reconstruction = [], [], [], [], [], [], [], [], []
 
-    
+    iteration = 0
     with torch.no_grad():
         for img, gt, label, img_path, save in tqdm(test_dataloader):
-
+            iteration += 1
+            if iteration == 10000:
+                break
+            
+            
             img = img.cuda()
             gt[gt > 0.1] = 1
             gt[gt <= 0.1] = 0
@@ -386,9 +390,9 @@ def evaluation_reconstruction(args, model, test_dataloader, epoch, loss_function
             prediction_map = np.where(difference > threshold, 1, 0)
 
         
-            # gt_list_px.extend(gt.astype(int).ravel())
+            gt_list_px.extend(gt.astype(int).ravel())
             # pr_list_px.extend(difference.ravel())
-            # pr_binary_list_px.extend(prediction_map.ravel())
+            pr_binary_list_px.extend(prediction_map.ravel())
             gt_list_sp.append(np.max(gt.astype(int)))
             pr_list_sp.append(np.max(difference))
             
@@ -403,7 +407,7 @@ def evaluation_reconstruction(args, model, test_dataloader, epoch, loss_function
             # dices.append(dice_sample_value)
             # a_map_max.append(difference.max())
         
-        # dice_value = dice(np.array(gt_list_px), np.array(pr_binary_list_px))
+        dice_value = dice(np.array(gt_list_px), np.array(pr_binary_list_px))
         # auroc_px = round(roc_auc_score(gt_list_px, pr_list_px), 3)
         auroc_sp = round(roc_auc_score(gt_list_sp, pr_list_sp), 3)
         

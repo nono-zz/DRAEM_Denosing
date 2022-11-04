@@ -16,7 +16,7 @@ import torch.nn.functional as F
 import random
 
 from dataloader_zzx import MVTecDataset, Medical_dataset
-from evaluation_mood import evaluation, evaluation_DRAEM, evaluation_reconstruction, evaluation_reconstruction_SP
+from evaluation_mood import evaluation, evaluation_DRAEM, evaluation_reconstruction
 from cutpaste import CutPaste3Way, CutPasteUnion
 
 from model import ReconstructiveSubNetwork, DiscriminativeSubNetwork
@@ -194,7 +194,7 @@ def train_on_device(args):
             # print('Pixel Auroc:{:.3f}, Sample Auroc{:.3f}, Dice{:3f}'.format(auroc_px, auroc_sp, dice_value))
             
             # dice_value, auroc_sp = evaluation_reconstruction(args, model, test_dataloader, epoch, loss_l1, run_name)
-            auroc_sp = evaluation_reconstruction_SP(args, model, test_dataloader, epoch, loss_l1, run_name)
+            auroc_sp = evaluation_reconstruction(args, model, test_dataloader, epoch, loss_l1, run_name)
             result_path = os.path.join('/home/zhaoxiang/output', run_name, 'results.txt')
             print('Sample Auroc{:.3f}'.format(auroc_sp))
             
