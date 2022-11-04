@@ -150,14 +150,18 @@ def train_on_device(args):
     for threshold in np.arange(0.0060, 0.2, 0.002):
     # for threshold in np.arange(0.08, 0.10, 0.002):
         # dice_value, auroc_px, auroc_sp = evaluation_reconstruction(args, model, test_dataloader, epoch, loss_function, run_name, threshold=threshold)
-        dice_value, auroc_px, auroc_sp, average_precesion = evaluation_reconstruction_AP(args, model, test_dataloader, epoch, loss_l1, run_name, threshold = threshold)
+        # dice_value, auroc_px, auroc_sp, average_precesion = evaluation_reconstruction_AP(args, model, test_dataloader, epoch, loss_l1, run_name, threshold = threshold)
+        # print('Threshold:{:.4f}, Pixel Auroc:{:.3f}, Sample Auroc{:.3f}, Dice{:3f}'.format(threshold, auroc_px, auroc_sp, dice_value))
         result_path = os.path.join('/home/zhaoxiang', 'output', run_name, 'results.txt')
-        print('Threshold:{:.4f}, Pixel Auroc:{:.3f}, Sample Auroc{:.3f}, Dice{:3f}'.format(threshold, auroc_px, auroc_sp, dice_value))
         
+        # with open(result_path, 'a') as f:
+        #     f.writelines('Threshold:{:.4f}, Epoch:{}, Pixel Auroc:{:.3f}, Sample Auroc{:.3f}, Dice:{:3f} \n'.format(threshold, epoch, auroc_px, auroc_sp, dice_value))     
+        #     # f.writelines('Pixel Auroc:{:.3f}, Sample Auroc{:.3f}, Pixel Aupro{:.3f}, Dice{:3f}'.format(auroc_px, auroc_sp, aupro_px, dice_value))                
+        result_path = os.path.join('/home/zhaoxiang', 'output', run_name, 'results.txt')
+        
+        auroc_sp = evaluation_reconstruction(args, model, test_dataloader, epoch, loss_l1, run_name, threshold = threshold)
         with open(result_path, 'a') as f:
-            f.writelines('Threshold:{:.4f}, Epoch:{}, Pixel Auroc:{:.3f}, Sample Auroc{:.3f}, Dice:{:3f} \n'.format(threshold, epoch, auroc_px, auroc_sp, dice_value))     
-            # f.writelines('Pixel Auroc:{:.3f}, Sample Auroc{:.3f}, Pixel Aupro{:.3f}, Dice{:3f}'.format(auroc_px, auroc_sp, aupro_px, dice_value))                
-        
+            f.writelines('Epoch:{}, Sample Auroc{:.3f}\n'.format(), epoch, auroc_sp) 
         
 
 if __name__=="__main__":
