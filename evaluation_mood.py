@@ -407,7 +407,7 @@ def evaluation_reconstruction(args, model, test_dataloader, epoch, loss_function
         # auroc_px = round(roc_auc_score(gt_list_px, pr_list_px), 3)
         auroc_sp = round(roc_auc_score(gt_list_sp, pr_list_sp), 3)
         
-        csv_path = os.path.join('/home/zhaoxiang/output', run_name, 'dice_results.csv')
+        # csv_path = os.path.join('/home/zhaoxiang/output', run_name, 'dice_results.csv')
         # df = pd.DataFrame({'img_path': img_paths, 'pred': preds, 'gt': gts, 'intersection': intersections, 'dice': dices, 'a_map_max': a_map_max})
         # df.to_csv(csv_path, index=False)
         
