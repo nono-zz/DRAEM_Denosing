@@ -431,7 +431,7 @@ def evaluation_reconstruction_AP(args, model, test_dataloader, epoch, loss_funct
     img_paths, preds, gts, intersections, dices, a_map_max, losses, losses_feature, losses_reconstruction = [], [], [], [], [], [], [], [], []
 
     with torch.no_grad():
-        for img, gt, label, img_path, save in test_dataloader:
+        for img, gt, label, img_path, save in tqdm(test_dataloader):
 
             img = img.cuda()
             gt[gt > 0.1] = 1
