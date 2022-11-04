@@ -141,6 +141,7 @@ def train_on_device(args):
     test_data = MVTecDataset(root=main_path, transform = test_transform, gt_transform=gt_transform, phase='test', dirs = dirs, data_source=args.experiment_name, args = args)
         
     test_dataloader = torch.utils.data.DataLoader(test_data, batch_size = 1, shuffle = False)
+    # test_dataloader = torch.utils.data.DataLoader(test_data, batch_size = 1, shuffle = True)
         
     loss_l1 = torch.nn.L1Loss()
     epoch = 'test'
