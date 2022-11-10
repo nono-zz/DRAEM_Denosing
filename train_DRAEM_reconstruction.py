@@ -20,6 +20,8 @@ from cutpaste import CutPaste3Way, CutPasteUnion
 
 from model import ReconstructiveSubNetwork, DiscriminativeSubNetwork
 
+from tqdm import tqdm
+
 def get_lr(optimizer):
     for param_group in optimizer.param_groups:
         return param_group['lr']
@@ -135,17 +137,20 @@ def train_on_device(args):
         experiment_path = os.path.join(output_path, run_name)
         if not os.path.exists(experiment_path):
             os.makedirs(experiment_path, exist_ok=True)
-        ckp_path = os.path.join(experiment_path, 'last.pth')
+        # ckp_path = os.path.join(experiment_path, 'last.pth')
+        ckp_path = os.path.join(experiment_path, 'best.pth')
         
-        model_denoise = torch.nn.DataParallel(model_denoise, device_ids=[0, 1])
-        model_segment = torch.nn.DataParallel(model_segment, device_ids=[0, 1])
+        # model_denoise = torch.nn.DataParallel(model_denoise, device_ids=[0, 1])
+        # model_segment = torch.nn.DataParallel(model_segment, device_ids=[0, 1])
+        model_denoise = torch.nn.DataParallel(model_denoise, device_ids=[0])
+        model_segment = torch.nn.DataParallel(model_segment, device_ids=[0])
 
         result_path = os.path.join(experiment_path, 'results.txt')
         
     last_epoch = 0
     if args.resume_training:
         model_denoise.load_state_dict(torch.load(ckp_path)['model_denoise'])
-        model_segment.load_state_dict(torch.load(ckp_path)['model_segment'])
+        model_segment.load_state_dict(torch.load(ckp_path)['model'])
         last_epoch = torch.load(ckp_path)['epoch']
         
     train_data = MVTecDataset(root=main_path, transform = test_transform, gt_transform=gt_transform, phase='train', dirs = dirs, data_source=args.experiment_name, args = args)
@@ -166,16 +171,18 @@ def train_on_device(args):
     loss_dice = DiceLoss()
     loss_diceBCE = DiceBCELoss()
     
+    
+    best_dice = 0
+    
     for epoch in range(last_epoch, args.epochs):
         # evaluation(args, model_denoise, model_segment, test_dataloader, epoch, loss_l1, visualizer, run_name)
         model_segment.train()
         model_denoise.train()
         loss_list = []
-        best_dice = 0
         
         # evaluation_DRAEM(args, model_denoise, model_segment, test_dataloader, epoch, loss_l1, run_name)
         # for img, label, img_path in train_dataloader:         
-        for img, aug, anomaly_mask in train_dataloader:
+        for img, aug, anomaly_mask in tqdm(train_dataloader):
             img = torch.reshape(img, (-1, 1, args.img_size, args.img_size))
             aug = torch.reshape(aug, (-1, 1, args.img_size, args.img_size))
             anomaly_mask = torch.reshape(anomaly_mask, (-1, 1, args.img_size, args.img_size))
@@ -307,7 +314,7 @@ if __name__=="__main__":
     parser.add_argument('--model', default='DRAEM', choices=['ws_skip_connection', 'DRAEM_reconstruction', 'DRAEM_discriminitive'], action='store')
     parser.add_argument('--process_method', default='Gaussian_noise', choices=['none', 'Guassian_noise', 'DRAEM', 'Simplex_noise'], action='store')
     parser.add_argument('--multi_layer', default=False, action='store')
-    parser.add_argument('--resume_training', default=False, action='store')
+    parser.add_argument('--resume_training', default=True, action='store')
     
     args = parser.parse_args()
    

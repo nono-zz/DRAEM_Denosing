@@ -234,7 +234,7 @@ def evaluation_DRAEM(args, model_denoise, model_segment, test_dataloader, epoch,
     pr_binary_list_px = []
     
     with torch.no_grad():
-        for img, gt, label, img_path, save in test_dataloader:
+        for img, gt, label, img_path, save in tqdm(test_dataloader):
 
             img = img.cuda()
             gt[gt > 0.1] = 1
