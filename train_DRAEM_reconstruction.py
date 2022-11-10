@@ -182,49 +182,49 @@ def train_on_device(args):
         
         # evaluation_DRAEM(args, model_denoise, model_segment, test_dataloader, epoch, loss_l1, run_name)
         # for img, label, img_path in train_dataloader:         
-        for img, aug, anomaly_mask in tqdm(train_dataloader):
-            img = torch.reshape(img, (-1, 1, args.img_size, args.img_size))
-            aug = torch.reshape(aug, (-1, 1, args.img_size, args.img_size))
-            anomaly_mask = torch.reshape(anomaly_mask, (-1, 1, args.img_size, args.img_size))
+        # for img, aug, anomaly_mask in tqdm(train_dataloader):
+        #     img = torch.reshape(img, (-1, 1, args.img_size, args.img_size))
+        #     aug = torch.reshape(aug, (-1, 1, args.img_size, args.img_size))
+        #     anomaly_mask = torch.reshape(anomaly_mask, (-1, 1, args.img_size, args.img_size))
             
-            img = img.cuda()
-            aug = aug.cuda()
-            anomaly_mask = anomaly_mask.cuda()
+        #     img = img.cuda()
+        #     aug = aug.cuda()
+        #     anomaly_mask = anomaly_mask.cuda()
 
-            rec = model_denoise(aug)
-            joined_in = torch.cat((rec, aug), dim=1)
+        #     rec = model_denoise(aug)
+        #     joined_in = torch.cat((rec, aug), dim=1)
             
-            out_mask = model_segment(joined_in)
-            out_mask_sm = torch.softmax(out_mask, dim=1)
+        #     out_mask = model_segment(joined_in)
+        #     out_mask_sm = torch.softmax(out_mask, dim=1)
 
-            l2_loss = loss_l2(rec,img)
-            ssim_loss = loss_ssim(rec, img)
+        #     l2_loss = loss_l2(rec,img)
+        #     ssim_loss = loss_ssim(rec, img)
             
-            if anomaly_mask.max() != 0:
-                segment_loss = loss_focal(out_mask_sm, anomaly_mask)
-                loss = segment_loss + l2_loss + ssim_loss
-            else:
-                loss = l2_loss + ssim_loss
-            # Dice_loss = loss_diceBCE(out_mask_sm, anomaly_mask)
+        #     if anomaly_mask.max() != 0:
+        #         segment_loss = loss_focal(out_mask_sm, anomaly_mask)
+        #         loss = segment_loss + l2_loss + ssim_loss
+        #     else:
+        #         loss = l2_loss + ssim_loss
+        #     # Dice_loss = loss_diceBCE(out_mask_sm, anomaly_mask)
             
-            # loss = l2_loss + ssim_loss + segment_loss
-            # loss = Dice_loss
+        #     # loss = l2_loss + ssim_loss + segment_loss
+        #     # loss = Dice_loss
 
             
-            save_image(aug, 'aug.png')
-            save_image(rec, 'rec_output.png')
-            save_image(img, 'rec_target.png')
-            save_image(anomaly_mask, 'mask_target.png')
-            save_image(out_mask_sm[:,1:,:,:], 'mask_output.png')
-            # loss = loss_l1(img, output)
+        #     save_image(aug, 'aug.png')
+        #     save_image(rec, 'rec_output.png')
+        #     save_image(img, 'rec_target.png')
+        #     save_image(anomaly_mask, 'mask_target.png')
+        #     save_image(out_mask_sm[:,1:,:,:], 'mask_output.png')
+        #     # loss = loss_l1(img, output)
 
-            optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
+        #     optimizer.zero_grad()
+        #     loss.backward()
+        #     optimizer.step()
         
-            loss_list.append(loss.item())
+        #     loss_list.append(loss.item())
             
-        print('epoch [{}/{}], loss:{:.4f}'.format(args.epochs, epoch, mean(loss_list)))
+        # print('epoch [{}/{}], loss:{:.4f}'.format(args.epochs, epoch, mean(loss_list)))
         
         # with torch.no_grad():
         #     if (epoch) % 3 == 0:
@@ -280,7 +280,7 @@ def train_on_device(args):
                 torch.save({'model_denoise': model_denoise.state_dict(),
                         'model': model_segment.state_dict(),
                         'epoch': epoch,
-                        'dice': dice_value}, ckp_path.replace('last', 'best'))
+                        'dice': dice_value}, ckp_path.replace('last', 'best_{}'.format(best_dice)))
                 
         
         
