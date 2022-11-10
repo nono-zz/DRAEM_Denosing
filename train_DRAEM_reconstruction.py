@@ -137,13 +137,13 @@ def train_on_device(args):
         experiment_path = os.path.join(output_path, run_name)
         if not os.path.exists(experiment_path):
             os.makedirs(experiment_path, exist_ok=True)
-        # ckp_path = os.path.join(experiment_path, 'last.pth')
-        ckp_path = os.path.join(experiment_path, 'best.pth')
+        ckp_path = os.path.join(experiment_path, 'last.pth')
+        # ckp_path = os.path.join(experiment_path, 'best.pth')
         
-        # model_denoise = torch.nn.DataParallel(model_denoise, device_ids=[0, 1])
-        # model_segment = torch.nn.DataParallel(model_segment, device_ids=[0, 1])
-        model_denoise = torch.nn.DataParallel(model_denoise, device_ids=[0])
-        model_segment = torch.nn.DataParallel(model_segment, device_ids=[0])
+        model_denoise = torch.nn.DataParallel(model_denoise, device_ids=[0, 1])
+        model_segment = torch.nn.DataParallel(model_segment, device_ids=[0, 1])
+        # model_denoise = torch.nn.DataParallel(model_denoise, device_ids=[1])
+        # model_segment = torch.nn.DataParallel(model_segment, device_ids=[1])
 
         result_path = os.path.join(experiment_path, 'results.txt')
         
@@ -155,7 +155,7 @@ def train_on_device(args):
         
     train_data = MVTecDataset(root=main_path, transform = test_transform, gt_transform=gt_transform, phase='train', dirs = dirs, data_source=args.experiment_name, args = args)
     val_data = MVTecDataset(root=main_path, transform = test_transform, gt_transform=gt_transform, phase='test', dirs = dirs, data_source=args.experiment_name, args = args)
-    test_data = MVTecDataset(root=main_path, transform = test_transform, gt_transform=gt_transform, phase='test', dirs = dirs, data_source=args.experiment_name, args = args)
+    test_data = MVTecDataset(root='/home/zhaoxiang/dataset/LiTs_with_labels', transform = test_transform, gt_transform=gt_transform, phase='test', dirs = dirs, data_source=args.experiment_name, args = args)
         
     train_dataloader = torch.utils.data.DataLoader(train_data, batch_size = args.bs, shuffle=False)
     val_dataloader = torch.utils.data.DataLoader(val_data, batch_size = args.bs, shuffle = False)
@@ -172,7 +172,7 @@ def train_on_device(args):
     loss_diceBCE = DiceBCELoss()
     
     
-    best_dice = 0
+    best_SP = 0
     
     for epoch in range(last_epoch, args.epochs):
         # evaluation(args, model_denoise, model_segment, test_dataloader, epoch, loss_l1, visualizer, run_name)
@@ -182,49 +182,49 @@ def train_on_device(args):
         
         # evaluation_DRAEM(args, model_denoise, model_segment, test_dataloader, epoch, loss_l1, run_name)
         # for img, label, img_path in train_dataloader:         
-        # for img, aug, anomaly_mask in tqdm(train_dataloader):
-        #     img = torch.reshape(img, (-1, 1, args.img_size, args.img_size))
-        #     aug = torch.reshape(aug, (-1, 1, args.img_size, args.img_size))
-        #     anomaly_mask = torch.reshape(anomaly_mask, (-1, 1, args.img_size, args.img_size))
+        for img, aug, anomaly_mask in tqdm(train_dataloader):
+            img = torch.reshape(img, (-1, 1, args.img_size, args.img_size))
+            aug = torch.reshape(aug, (-1, 1, args.img_size, args.img_size))
+            anomaly_mask = torch.reshape(anomaly_mask, (-1, 1, args.img_size, args.img_size))
             
-        #     img = img.cuda()
-        #     aug = aug.cuda()
-        #     anomaly_mask = anomaly_mask.cuda()
+            img = img.cuda()
+            aug = aug.cuda()
+            anomaly_mask = anomaly_mask.cuda()
 
-        #     rec = model_denoise(aug)
-        #     joined_in = torch.cat((rec, aug), dim=1)
+            rec = model_denoise(aug)
+            joined_in = torch.cat((rec, aug), dim=1)
             
-        #     out_mask = model_segment(joined_in)
-        #     out_mask_sm = torch.softmax(out_mask, dim=1)
+            out_mask = model_segment(joined_in)
+            out_mask_sm = torch.softmax(out_mask, dim=1)
 
-        #     l2_loss = loss_l2(rec,img)
-        #     ssim_loss = loss_ssim(rec, img)
+            l2_loss = loss_l2(rec,img)
+            ssim_loss = loss_ssim(rec, img)
             
-        #     if anomaly_mask.max() != 0:
-        #         segment_loss = loss_focal(out_mask_sm, anomaly_mask)
-        #         loss = segment_loss + l2_loss + ssim_loss
-        #     else:
-        #         loss = l2_loss + ssim_loss
-        #     # Dice_loss = loss_diceBCE(out_mask_sm, anomaly_mask)
+            if anomaly_mask.max() != 0:
+                segment_loss = loss_focal(out_mask_sm, anomaly_mask)
+                loss = segment_loss + l2_loss + ssim_loss
+            else:
+                loss = l2_loss + ssim_loss
+            # Dice_loss = loss_diceBCE(out_mask_sm, anomaly_mask)
             
-        #     # loss = l2_loss + ssim_loss + segment_loss
-        #     # loss = Dice_loss
+            # loss = l2_loss + ssim_loss + segment_loss
+            # loss = Dice_loss
 
             
-        #     save_image(aug, 'aug.png')
-        #     save_image(rec, 'rec_output.png')
-        #     save_image(img, 'rec_target.png')
-        #     save_image(anomaly_mask, 'mask_target.png')
-        #     save_image(out_mask_sm[:,1:,:,:], 'mask_output.png')
-        #     # loss = loss_l1(img, output)
+            save_image(aug, 'aug.png')
+            save_image(rec, 'rec_output.png')
+            save_image(img, 'rec_target.png')
+            save_image(anomaly_mask, 'mask_target.png')
+            save_image(out_mask_sm[:,1:,:,:], 'mask_output.png')
+            # loss = loss_l1(img, output)
 
-        #     optimizer.zero_grad()
-        #     loss.backward()
-        #     optimizer.step()
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
         
-        #     loss_list.append(loss.item())
+            loss_list.append(loss.item())
             
-        # print('epoch [{}/{}], loss:{:.4f}'.format(args.epochs, epoch, mean(loss_list)))
+        print('epoch [{}/{}], loss:{:.4f} \n'.format(args.epochs, epoch, mean(loss_list)))
         
         # with torch.no_grad():
         #     if (epoch) % 3 == 0:
@@ -263,24 +263,33 @@ def train_on_device(args):
         if (epoch) % 10 == 0:
             model_segment.eval()
             model_denoise.eval()
-            dice_value, auroc_px, auroc_sp = evaluation_DRAEM(args, model_denoise, model_segment, test_dataloader, epoch, loss_l1, run_name)
+            # dice_value, auroc_px, auroc_sp = evaluation_DRAEM(args, model_denoise, model_segment, test_dataloader, epoch, loss_l1, run_name)
+            # result_path = os.path.join('/home/zhaoxiang/output', run_name, 'results.txt')
+            # print('Pixel Auroc:{:.3f}, Sample Auroc{:.3f}, Dice{:3f}'.format(auroc_px, auroc_sp, dice_value))
+            
+            # with open(result_path, 'a') as f:
+            #     f.writelines('Epoch:{}, Pixel Auroc:{:.3f}, Sample Auroc{:.3f}, Dice:{:3f} \n'.format(epoch, auroc_px, auroc_sp, dice_value))   
+            
+            
+            auroc_sp = evaluation_DRAEM(args, model_denoise, model_segment, test_dataloader, epoch, loss_l1, run_name)
             result_path = os.path.join('/home/zhaoxiang/output', run_name, 'results.txt')
-            print('Pixel Auroc:{:.3f}, Sample Auroc{:.3f}, Dice{:3f}'.format(auroc_px, auroc_sp, dice_value))
+            print('Sample Auroc{:.3f}'.format(auroc_sp))
             
             with open(result_path, 'a') as f:
-                f.writelines('Epoch:{}, Pixel Auroc:{:.3f}, Sample Auroc{:.3f}, Dice:{:3f} \n'.format(epoch, auroc_px, auroc_sp, dice_value))   
+                f.writelines('Epoch:{}, Sample Auroc{:.3f} \n'.format(epoch, auroc_sp)) 
+            
             
             # torch.save(model_segment.state_dict(), ckp_path.replace('last', 'segment'))
             torch.save({'model_denoise': model_denoise.state_dict(),
                         'model': model_segment.state_dict(),
                         'epoch': epoch}, ckp_path)
             
-            if dice_value > best_dice:
-                best_dice = dice_value
+            if auroc_sp > best_SP:
+                best_SP = auroc_sp
                 torch.save({'model_denoise': model_denoise.state_dict(),
                         'model': model_segment.state_dict(),
                         'epoch': epoch,
-                        'dice': dice_value}, ckp_path.replace('last', 'best_{}'.format(best_dice)))
+                        'dice': dice_value}, ckp_path.replace('last', 'best_{}'.format(best_SP)))
                 
         
         

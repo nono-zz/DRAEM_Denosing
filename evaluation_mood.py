@@ -303,22 +303,22 @@ def evaluation_DRAEM(args, model_denoise, model_segment, test_dataloader, epoch,
 
             # anomaly_map = gaussian_filter(anomaly_map, sigma=4)
             # prediction_map = np.where(min_max_norm(anomaly_map) > threshold, 1, 0)
-            prediction_map = np.where(anomaly_map > threshold, 1, 0)
+            # prediction_map = np.where(anomaly_map > threshold, 1, 0)
 
         
-            gt_list_px.extend(gt.astype(int).ravel())
-            pr_list_px.extend(anomaly_map.ravel())
-            pr_binary_list_px.extend(prediction_map.ravel())
+            # gt_list_px.extend(gt.astype(int).ravel())
+            # pr_list_px.extend(anomaly_map.ravel())
+            # pr_binary_list_px.extend(prediction_map.ravel())
             gt_list_sp.append(np.max(gt.astype(int)))
             pr_list_sp.append(np.max(anomaly_map))
         
-        # dice_value = mean(dice_error)
-        dice_value = dice(np.array(gt_list_px), np.array(pr_binary_list_px))
-        auroc_px = round(roc_auc_score(gt_list_px, pr_list_px), 3)
+        # dice_value = dice(np.array(gt_list_px), np.array(pr_binary_list_px))
+        # auroc_px = round(roc_auc_score(gt_list_px, pr_list_px), 3)
         auroc_sp = round(roc_auc_score(gt_list_sp, pr_list_sp), 3)
         
         
-    return dice_value, auroc_px, auroc_sp
+    # return dice_value, auroc_px, auroc_sp
+    return auroc_sp
 
 def evaluation_reconstruction(args, model, test_dataloader, epoch, loss_function, run_name, threshold = 0.1):
     

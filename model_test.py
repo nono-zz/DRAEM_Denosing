@@ -172,7 +172,7 @@ if __name__=="__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--obj_id', default=1,  action='store', type=int)
     parser.add_argument('--lr', default=0.0001, action='store', type=float)
-    parser.add_argument('--epochs', default=700, action='store', type=int)
+    parser.add_argument('--epochs', default=900, action='store', type=int)
     parser.add_argument('--checkpoint_path', default='./checkpoints/', action='store', type=str)
     parser.add_argument('--log_path', default='./logs/', action='store', type=str)
     parser.add_argument('--visualize', default=True, action='store_true')
