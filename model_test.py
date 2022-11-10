@@ -21,7 +21,7 @@ import torch.nn.functional as F
 import random
 
 from dataloader_zzx import MVTecDataset
-from evaluation_mood import evaluation, evaluation_reconstruction, evaluation_reconstruction_AP
+from evaluation_mood import evaluation, evaluation_reconstruction, evaluation_reconstruction_AP, evaluation_stats
 from cutpaste import CutPaste3Way, CutPasteUnion
 
 
@@ -138,9 +138,12 @@ def train_on_device(args):
     # ckp_path = os.path.join('/home/zhaoxiang', 'output', run_name, 'last.pth')
     model = torch.nn.DataParallel(model, device_ids=[0, 1])
     model.load_state_dict(torch.load(ckp_path)['model'])    
+    # test_data
     test_data = MVTecDataset(root=main_path, transform = test_transform, gt_transform=gt_transform, phase='test', dirs = dirs, data_source=args.experiment_name, args = args)
+    train_data = MVTecDataset(root=main_path, transform = test_transform, gt_transform=gt_transform, phase='train', dirs = dirs, data_source=args.experiment_name, args = args)
         
     test_dataloader = torch.utils.data.DataLoader(test_data, batch_size = 1, shuffle = False)
+    train_dataloader = torch.utils.data.DataLoader(train_data, batch_size = 1, shuffle = False)
     # test_dataloader = torch.utils.data.DataLoader(test_data, batch_size = 1, shuffle = True)
         
     loss_l1 = torch.nn.L1Loss()
@@ -160,7 +163,9 @@ def train_on_device(args):
         #     # f.writelines('Pixel Auroc:{:.3f}, Sample Auroc{:.3f}, Pixel Aupro{:.3f}, Dice{:3f}'.format(auroc_px, auroc_sp, aupro_px, dice_value))                
         result_path = os.path.join('/home/zhaoxiang', 'output', run_name, 'results.txt')
         
-        auroc_sp = evaluation_reconstruction(args, model, test_dataloader, epoch, loss_l1, run_name, threshold = threshold)
+        # auroc_sp = evaluation_reconstruction(args, model, test_dataloader, epoch, loss_l1, run_name, threshold = threshold)
+        # evaluation_stats(args, model, test_dataloader, epoch, loss_l1, run_name, threshold = threshold)
+        evaluation_stats(args, model, train_dataloader, epoch, loss_l1, run_name, threshold = threshold)
         with open(result_path, 'a') as f:
             f.writelines('Epoch:{}, Sample Auroc{:.3f}\n'.format(epoch, auroc_sp)) 
         
@@ -172,7 +177,7 @@ if __name__=="__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--obj_id', default=1,  action='store', type=int)
     parser.add_argument('--lr', default=0.0001, action='store', type=float)
-    parser.add_argument('--epochs', default=900, action='store', type=int)
+    parser.add_argument('--epochs', default=700, action='store', type=int)
     parser.add_argument('--checkpoint_path', default='./checkpoints/', action='store', type=str)
     parser.add_argument('--log_path', default='./logs/', action='store', type=str)
     parser.add_argument('--visualize', default=True, action='store_true')
@@ -190,7 +195,7 @@ if __name__=="__main__":
     parser.add_argument('--experiment_name', default='ColorJitter_reconstruction', choices=['DRAEM_Denoising_reconstruction, RandomShape_reconstruction, brain, head'], action='store')
     parser.add_argument('--colorRange', default=100, action='store')
     parser.add_argument('--threshold', default=200, action='store')
-    parser.add_argument('--dataset_name', default='LiTs_with_labels', choices=['hist_DIY', 'full_LiTs_histDIY', 'LiTs_with_labels', 'Brain_MRI', 'CovidX', 'RESC_average'], action='store')
+    parser.add_argument('--dataset_name', default='hist_DIY', choices=['hist_DIY', 'full_LiTs_histDIY', 'LiTs_with_labels', 'Brain_MRI', 'CovidX', 'RESC_average'], action='store')
     parser.add_argument('--model', default='ws_skip_connection', choices=['ws_skip_connection', 'DRAEM_reconstruction', 'DRAEM_discriminitive'], action='store')
     parser.add_argument('--process_method', default='ColorJitter', choices=['none', 'Guassian_noise', 'DRAEM', 'Simplex_noise'], action='store')
     parser.add_argument('--multi_layer', default=False, action='store')

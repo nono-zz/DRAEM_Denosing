@@ -625,6 +625,48 @@ def evaluation_reconstruction_AP(args, model, test_dataloader, epoch, loss_funct
     # return dice_value, auroc_px, auroc_sp, Average_precesion
     return dice_value, auroc_sp
 
+
+def evaluation_stats(args, model, test_dataloader, epoch, loss_function, run_name, threshold = 0.1):
+    
+    model.eval()
+    
+    dice_error = []
+        
+    gt_list_px = []
+    pr_list_px = []
+    gt_list_sp = []
+    pr_list_sp = []
+    aupro_list = []
+    pr_binary_list_px = []
+    img_paths, labels, a_map_max = [], [], []
+
+    with torch.no_grad():
+        # for img, gt, label, img_path, save in tqdm(test_dataloader):
+        for img, aug, gt in tqdm(test_dataloader):
+            
+            img = img.squeeze(0)
+
+            img = img.cuda()
+            gt[gt > 0.1] = 1
+            gt[gt <= 0.1] = 0
+            # check if img is RGB
+            rec = model(img)
+            
+            initial_feature = img
+
+            difference = cal_distance_map(rec[0,0,:,:].to('cpu').detach().numpy(), img[0,0,:,:].to('cpu').detach().numpy())            
+        
+            
+            img_paths.append(0)
+            pr_list_sp.append(np.max(difference))
+            labels.append(0)
+        
+        
+        csv_path = os.path.join('/home/zhaoxiang/output', run_name, 'test_full_stats.csv')
+        df = pd.DataFrame({'img_path': img_paths, 'label': labels, 'a_map_max': pr_list_sp})
+        df.to_csv(csv_path, index=False)
+        
+
 def compute_pro(masks: ndarray, amaps: ndarray, num_th: int = 200) -> None:
     
     

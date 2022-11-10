@@ -86,6 +86,7 @@ def train_on_device(args):
 
     # run_name = args.experiment_name + '_' +str(args.lr)+'_'+str(args.epochs)+'_bs'+str(args.bs)+"_"+"Guassian_blur"
     run_name = args.experiment_name + '_' +str(args.lr)+'_'+str(args.epochs)+'_colorRange'+'_'+str(args.colorRange)+'_threshold'+'_'+str(args.threshold)+"_" + args.model + "_" + args.process_method
+    run_name = args.experiment_name + '_' +str(args.lr)+'_'+str(700)+'_colorRange'+'_'+str(args.colorRange)+'_threshold'+'_'+str(args.threshold)+"_" + args.model + "_" + args.process_method
 
     main_path = '/home/zhaoxiang/dataset/{}'.format(args.dataset_name)
     
@@ -155,7 +156,8 @@ def train_on_device(args):
         
     train_data = MVTecDataset(root=main_path, transform = test_transform, gt_transform=gt_transform, phase='train', dirs = dirs, data_source=args.experiment_name, args = args)
     val_data = MVTecDataset(root=main_path, transform = test_transform, gt_transform=gt_transform, phase='test', dirs = dirs, data_source=args.experiment_name, args = args)
-    test_data = MVTecDataset(root='/home/zhaoxiang/dataset/LiTs_with_labels', transform = test_transform, gt_transform=gt_transform, phase='test', dirs = dirs, data_source=args.experiment_name, args = args)
+    test_data = MVTecDataset(root=main_path, transform = test_transform, gt_transform=gt_transform, phase='test', dirs = dirs, data_source=args.experiment_name, args = args)
+    # test_data = MVTecDataset(root='/home/zhaoxiang/dataset/LiTs_with_labels', transform = test_transform, gt_transform=gt_transform, phase='test', dirs = dirs, data_source=args.experiment_name, args = args)
         
     train_dataloader = torch.utils.data.DataLoader(train_data, batch_size = args.bs, shuffle=False)
     val_dataloader = torch.utils.data.DataLoader(val_data, batch_size = args.bs, shuffle = False)
@@ -200,14 +202,14 @@ def train_on_device(args):
             l2_loss = loss_l2(rec,img)
             ssim_loss = loss_ssim(rec, img)
             
-            if anomaly_mask.max() != 0:
-                segment_loss = loss_focal(out_mask_sm, anomaly_mask)
-                loss = segment_loss + l2_loss + ssim_loss
-            else:
-                loss = l2_loss + ssim_loss
-            # Dice_loss = loss_diceBCE(out_mask_sm, anomaly_mask)
+            # if anomaly_mask.max() != 0:
+            #     segment_loss = loss_focal(out_mask_sm, anomaly_mask)
+            #     loss = segment_loss + l2_loss + ssim_loss
+            # else:
+            # loss = l2_loss + ssim_loss
+            Dice_loss = loss_diceBCE(out_mask_sm[:,1,:,:], anomaly_mask)
             
-            # loss = l2_loss + ssim_loss + segment_loss
+            loss = l2_loss + ssim_loss + Dice_loss
             # loss = Dice_loss
 
             
@@ -289,7 +291,7 @@ def train_on_device(args):
                 torch.save({'model_denoise': model_denoise.state_dict(),
                         'model': model_segment.state_dict(),
                         'epoch': epoch,
-                        'dice': dice_value}, ckp_path.replace('last', 'best_{}'.format(best_SP)))
+                        'best_SP': best_SP}, ckp_path.replace('last', 'best_{}'.format(best_SP)))
                 
         
         
@@ -301,7 +303,7 @@ if __name__=="__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--obj_id', default=1,  action='store', type=int)
     parser.add_argument('--lr', default=0.0001, action='store', type=float)
-    parser.add_argument('--epochs', default=700, action='store', type=int)
+    parser.add_argument('--epochs', default=900, action='store', type=int)
     parser.add_argument('--checkpoint_path', default='./checkpoints/', action='store', type=str)
     parser.add_argument('--log_path', default='./logs/', action='store', type=str)
     parser.add_argument('--visualize', default=True, action='store_true')
@@ -323,7 +325,7 @@ if __name__=="__main__":
     parser.add_argument('--model', default='DRAEM', choices=['ws_skip_connection', 'DRAEM_reconstruction', 'DRAEM_discriminitive'], action='store')
     parser.add_argument('--process_method', default='Gaussian_noise', choices=['none', 'Guassian_noise', 'DRAEM', 'Simplex_noise'], action='store')
     parser.add_argument('--multi_layer', default=False, action='store')
-    parser.add_argument('--resume_training', default=True, action='store')
+    parser.add_argument('--resume_training', default=False, action='store')
     
     args = parser.parse_args()
    
