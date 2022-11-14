@@ -15,7 +15,7 @@ import torch.nn.functional as F
 import random
 
 from dataloader_zzx import MVTecDataset, Medical_dataset
-from evaluation_mood import evaluation, evaluation_DRAEM
+from evaluation_mood import evaluation, evaluation_DRAEM, evaluation_DRAEM_with_device
 from cutpaste import CutPaste3Way, CutPasteUnion
 
 from model import ReconstructiveSubNetwork, DiscriminativeSubNetwork
@@ -86,7 +86,7 @@ def train_on_device(args):
 
     # run_name = args.experiment_name + '_' +str(args.lr)+'_'+str(args.epochs)+'_bs'+str(args.bs)+"_"+"Guassian_blur"
     run_name = args.experiment_name + '_' +str(args.lr)+'_'+str(args.epochs)+'_colorRange'+'_'+str(args.colorRange)+'_threshold'+'_'+str(args.threshold)+"_" + args.model + "_" + args.process_method
-    run_name = args.experiment_name + '_' +str(args.lr)+'_'+str(700)+'_colorRange'+'_'+str(args.colorRange)+'_threshold'+'_'+str(args.threshold)+"_" + args.model + "_" + args.process_method
+    # run_name = args.experiment_name + '_' +str(args.lr)+'_'+str(700)+'_colorRange'+'_'+str(args.colorRange)+'_threshold'+'_'+str(args.threshold)+"_" + args.model + "_" + args.process_method
 
     main_path = '/home/zhaoxiang/dataset/{}'.format(args.dataset_name)
     
@@ -112,21 +112,24 @@ def train_on_device(args):
 
     from model_noise import UNet
     
-    # device = torch.device('cuda:{}'.format(args.gpu_id))
+    device = torch.device('cuda:{}'.format(args.gpu_id))
     n_input = 1
     n_classes = 1           # the target is the reconstructed image
     depth = 4
     wf = 6
     
     if args.model == 'ws_skip_connection':
-        model = UNet(in_channels=n_input, n_classes=n_classes, norm="group", up_mode="upconv", depth=depth, wf=wf, padding=True).cuda()
+        model = UNet(in_channels=n_input, n_classes=n_classes, norm="group", up_mode="upconv", depth=depth, wf=wf, padding=True).to(device)
     elif args.model == 'DRAEM_reconstruction':
-        model = ReconstructiveSubNetwork(in_channels=n_input, out_channels=n_input).cuda()
+        model = ReconstructiveSubNetwork(in_channels=n_input, out_channels=n_input).to(device)
     elif args.model == 'DRAEM_discriminitive':
-        model = DiscriminativeSubNetwork(in_channels=n_input, out_channels=n_input).cuda()
+        model = DiscriminativeSubNetwork(in_channels=n_input, out_channels=n_input).to(device)
     elif args.model == 'DRAEM':
-        model_denoise = UNet(in_channels=n_input, n_classes=n_classes, norm="group", up_mode="upconv", depth=depth, wf=wf, padding=True).cuda()
-        model_segment = DiscriminativeSubNetwork(in_channels=2, out_channels=2).cuda()
+        model_denoise = UNet(in_channels=n_input, n_classes=n_classes, norm="group", up_mode="upconv", depth=depth, wf=wf, padding=True).to(device)
+        model_segment = DiscriminativeSubNetwork(in_channels=2, out_channels=2).to(device)
+        
+        model_denoise.to(device)
+        model_segment.to(device)
         # model_denoise = torch.nn.DataParallel(model_denoise, device_ids=[0])
         # model_segment = torch.nn.DataParallel(model_segment, device_ids=[0])
         
@@ -144,8 +147,8 @@ def train_on_device(args):
         
         # model_denoise = torch.nn.DataParallel(model_denoise, device_ids=[0, 1])
         # model_segment = torch.nn.DataParallel(model_segment, device_ids=[0, 1])
-        model_denoise = torch.nn.DataParallel(model_denoise, device_ids=[1])
-        model_segment = torch.nn.DataParallel(model_segment, device_ids=[1])
+        # model_denoise = torch.nn.DataParallel(model_denoise, device_ids=[1])
+        # model_segment = torch.nn.DataParallel(model_segment, device_ids=[1])
 
         result_path = os.path.join(experiment_path, 'results.txt')
         
@@ -157,8 +160,8 @@ def train_on_device(args):
         
     train_data = MVTecDataset(root=main_path, transform = test_transform, gt_transform=gt_transform, phase='train', dirs = dirs, data_source=args.experiment_name, args = args)
     val_data = MVTecDataset(root=main_path, transform = test_transform, gt_transform=gt_transform, phase='test', dirs = dirs, data_source=args.experiment_name, args = args)
-    # test_data = MVTecDataset(root=main_path, transform = test_transform, gt_transform=gt_transform, phase='test', dirs = dirs, data_source=args.experiment_name, args = args)
-    test_data = MVTecDataset(root='/home/zhaoxiang/dataset/LiTs_with_labels', transform = test_transform, gt_transform=gt_transform, phase='test', dirs = dirs, data_source=args.experiment_name, args = args)
+    test_data = MVTecDataset(root=main_path, transform = test_transform, gt_transform=gt_transform, phase='test', dirs = dirs, data_source=args.experiment_name, args = args)
+    # test_data = MVTecDataset(root='/home/zhaoxiang/dataset/LiTs_with_labels', transform = test_transform, gt_transform=gt_transform, phase='test', dirs = dirs, data_source=args.experiment_name, args = args)
         
     train_dataloader = torch.utils.data.DataLoader(train_data, batch_size = args.bs, shuffle=True)
     # val_dataloader = torch.utils.data.DataLoader(val_data, batch_size = args.bs, shuffle = False)
@@ -170,7 +173,7 @@ def train_on_device(args):
     optimizer = torch.optim.Adam(list(model_segment.parameters()) + list(model_denoise.parameters()), lr = args.lr)
     
     loss_l2 = torch.nn.modules.loss.MSELoss()
-    loss_ssim = SSIM()
+    loss_ssim = SSIM(device=device)
     loss_focal = FocalLoss()
     loss_dice = DiceLoss()
     loss_diceBCE = DiceBCELoss()
@@ -194,9 +197,9 @@ def train_on_device(args):
             aug = torch.reshape(aug, (-1, 1, args.img_size, args.img_size))
             anomaly_mask = torch.reshape(anomaly_mask, (-1, 1, args.img_size, args.img_size))
             
-            img = img.cuda()
-            aug = aug.cuda()
-            anomaly_mask = anomaly_mask.cuda()
+            img = img.to(device)
+            aug = aug.to(device)
+            anomaly_mask = anomaly_mask.to(device)
 
             rec = model_denoise(aug)
             joined_in = torch.cat((rec, aug), dim=1)
@@ -241,8 +244,8 @@ def train_on_device(args):
         #         # model_denoise.train()
         #         error_list = []
         #         for img, gt, label, img_path, saves in val_dataloader:
-        #             img = img.cuda()
-        #             gt = gt.cuda()
+        #             img = img.to(device)
+        #             gt = gt.to(device)
                     
         #             rec = model_denoise(img)
                     
@@ -282,7 +285,8 @@ def train_on_device(args):
             #     f.writelines('Epoch:{}, Pixel Auroc:{:.3f}, Sample Auroc{:.3f}, Dice:{:3f} \n'.format(epoch, auroc_px, auroc_sp, dice_value))   
             
             
-            auroc_sp = evaluation_DRAEM(args, model_denoise, model_segment, test_dataloader, epoch, loss_l1, run_name)
+            # auroc_sp = evaluation_DRAEM(args, model_denoise, model_segment, test_dataloader, epoch, loss_l1, run_name)
+            auroc_sp = evaluation_DRAEM_with_device(args, model_denoise, model_segment, test_dataloader, epoch, loss_l1, run_name, device)
             result_path = os.path.join('/home/zhaoxiang/output', run_name, 'results.txt')
             print('Sample Auroc{:.3f}'.format(auroc_sp))
             
@@ -326,8 +330,9 @@ if __name__=="__main__":
     
     # need to be changed/checked every time
     parser.add_argument('--bs', default = 8, action='store', type=int)
-    parser.add_argument('--gpu_id', default=['0','1'], action='store', type=str, required=False)
-    parser.add_argument('--experiment_name', default='DRAEM_Denoising_whole_test', choices=['DRAEM_Denoising_reconstruction, liver, brain, head'], action='store')
+    # parser.add_argument('--gpu_id', default=['0','1'], action='store', type=str, required=False)
+    parser.add_argument('--gpu_id', default='1', action='store', type=str, required=False)
+    parser.add_argument('--experiment_name', default='DRAEM_Denoising_partial_test', choices=['DRAEM_Denoising_reconstruction, liver, brain, head'], action='store')
     parser.add_argument('--colorRange', default=100, action='store')
     parser.add_argument('--threshold', default=200, action='store')
     parser.add_argument('--dataset_name', default='hist_DIY', choices=['hist_DIY', 'Brain_MRI', 'CovidX', 'RESC_average'], action='store')
@@ -338,17 +343,17 @@ if __name__=="__main__":
     
     args = parser.parse_args()
    
-    os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
-    if args.gpu_id is None:
-        gpus = "0"
-        os.environ["CUDA_VISIBLE_DEVICES"]= gpus
-    else:
-        gpus = ""
-        for i in range(len(args.gpu_id)):
-            gpus = gpus + args.gpu_id[i] + ","
-        os.environ["CUDA_VISIBLE_DEVICES"]= gpus[:-1]
+    # os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
+    # if args.gpu_id is None:
+    #     gpus = "0"
+    #     os.environ["CUDA_VISIBLE_DEVICES"]= gpus
+    # else:
+    #     gpus = ""
+    #     for i in range(len(args.gpu_id)):
+    #         gpus = gpus + args.gpu_id[i] + ","
+    #     os.environ["CUDA_VISIBLE_DEVICES"]= gpus[:-1]
 
-    torch.backends.cudnn.enabled = True # make sure to use cudnn for computational performance
+    # torch.backends.cudnn.enabled = True # make sure to use cudnn for computational performance
 
     # with torch.cuda.device(args.gpu_id):
     train_on_device(args)
