@@ -16,7 +16,7 @@ import torch.nn.functional as F
 import random
 
 from dataloader_zzx import MVTecDataset, Medical_dataset
-from evaluation_mood import evaluation, evaluation_DRAEM, evaluation_reconstruction
+from evaluation_mood import evaluation, evaluation_DRAEM, evaluation_reconstruction, evaluation_reconstruction_AP
 from cutpaste import CutPaste3Way, CutPasteUnion
 
 from model import ReconstructiveSubNetwork, DiscriminativeSubNetwork
@@ -84,7 +84,7 @@ def train_on_device(args):
         os.makedirs(args.log_path)
 
     # run_name = args.experiment_name + '_' +str(args.lr)+'_'+str(args.epochs)+'_bs'+str(args.bs)+"_"+"Guassian_blur"
-    run_name = args.experiment_name + '_' + args.dataset_name + '_' +str(args.lr)+'_'+str(args.epochs)+'_colorRange'+'_'+str(args.colorRange)+'_threshold'+'_'+str(args.threshold)+"_" + args.model + "_" + args.process_method
+    run_name = args.experiment_name + '_' +str(args.lr)+'_'+str(args.epochs)+'_colorRange'+'_'+str(args.colorRange)+'_threshold'+'_'+str(args.threshold)+"_" + args.model + "_" + args.process_method
 
     main_path = '/home/zhaoxiang/dataset/{}'.format(args.dataset_name)
     
@@ -144,7 +144,7 @@ def train_on_device(args):
     val_data = MVTecDataset(root=main_path, transform = test_transform, gt_transform=gt_transform, phase='test', dirs = dirs, data_source=args.experiment_name, args = args)
     test_data = MVTecDataset(root=main_path, transform = test_transform, gt_transform=gt_transform, phase='test', dirs = dirs, data_source=args.experiment_name, args = args)
         
-    train_dataloader = torch.utils.data.DataLoader(train_data, batch_size = args.bs, shuffle=True)
+    train_dataloader = torch.utils.data.DataLoader(train_data, batch_size = args.bs, shuffle=False)
     val_dataloader = torch.utils.data.DataLoader(val_data, batch_size = args.bs, shuffle = False)
     test_dataloader = torch.utils.data.DataLoader(test_data, batch_size = 1, shuffle = False)
         
@@ -157,15 +157,24 @@ def train_on_device(args):
     loss_focal = FocalLoss()
     loss_dice = DiceLoss()
     loss_diceBCE = DiceBCELoss()
+
+    best_sample_AUROC = 0 
+    best_ap = 0
+    
+    # data_generator = iter(train_dataloader)
     
     for epoch in range(last_epoch, args.epochs):
         # evaluation(args, model_denoise, model_segment, test_dataloader, epoch, loss_l1, visualizer, run_name)
-        # evaluation_reconstruction(args, model, test_dataloader, epoch, loss_l1, run_name)
+        # dice_value, auroc_px, auroc_sp, average_precesion = evaluation_reconstruction_AP(args, model, test_dataloader, epoch, loss_l1, run_name)
         
         model.train()
         loss_list = []
-        # dice_value, auroc_px, auroc_sp = evaluation_reconstruction(args, model, test_dataloader, epoch, loss_l1, run_name)
-        for img, aug, anomaly_mask in tqdm(train_dataloader):
+        iteration = 0
+        # for iteration, (img, aug, anomaly_mask) in enumerate(train_dataloader):
+        #     if iteration > 100:
+        #         break
+        for img, aug, anomaly_mask in train_dataloader:
+            # img, aug, anomaly_mask = next(data_generator)
             img = torch.reshape(img, (-1, 1, args.img_size, args.img_size))
             aug = torch.reshape(aug, (-1, 1, args.img_size, args.img_size))
             anomaly_mask = torch.reshape(anomaly_mask, (-1, 1, args.img_size, args.img_size))
@@ -200,9 +209,6 @@ def train_on_device(args):
             
         print('epoch [{}/{}], loss:{:.4f}'.format(args.epochs, epoch, mean(loss_list)))
         
-        with open(result_path, 'a') as f:
-            f.writelines('epoch [{}/{}], loss:{:.4f}'.format(args.epochs, epoch, mean(loss_list)))   
-                
         # with torch.no_grad():
         #     if (epoch) % 3 == 0:
         #         model_segment.eval()
@@ -232,24 +238,31 @@ def train_on_device(args):
                     
         #             error_list.append(loss.item())
                 
-        #         print('eval [{}/{}], error:{:.4f}'.format(args.epochs, epoch, mean(error_list)))
+        #         print('eval [{}/{}], error:{:.4f}'.format(args.epochs, epoch+,_
+        #  mean(error_list)))
                 # visualizer.plot_loss(mean(error_list), epoch, loss_name='L1_loss_eval')
                 # visualizer.visualize_image_batch(input, epoch, image_name='target_eval')
                 # visualizer.visualize_image_batch(output, epoch, image_name='output_eval')
                 
         if (epoch) % 10 == 0:
             model.eval()
-            # dice_value, auroc_px, auroc_sp = evaluation_reconstruction(args, model, test_dataloader, epoch, loss_l1, run_name)
-            # result_path = os.path.join('/home/zhaoxiang/output', run_name, 'results.txt')
-            # print('Pixel Auroc:{:.3f}, Sample Auroc{:.3f}, Dice{:3f}'.format(auroc_px, auroc_sp, dice_value))
-            
-            dice_value, auroc_sp = evaluation_reconstruction(args, model, test_dataloader, epoch, loss_l1, run_name)
+            dice_value, auroc_px, auroc_sp, average_precesion = evaluation_reconstruction_AP(args, model, test_dataloader, epoch, loss_l1, run_name)
             result_path = os.path.join('/home/zhaoxiang/output', run_name, 'results.txt')
-            print('Sample Auroc{:.3f}, Dice{:3f}'.format(auroc_sp, dice_value))
+            print('Pixel Auroc:{:.3f}, Sample Auroc{:.3f}, Average Precesion{:3f}, Dice{:3f}'.format(auroc_px, auroc_sp, average_precesion, dice_value))
             
+
+            if auroc_sp > best_sample_AUROC:
+                best_sample_AUROC = auroc_sp
+                torch.save({'model': model.state_dict(),
+                        'epoch': epoch}, ckp_path.replace('last', 'best_sample'))
+
+            if average_precesion > best_ap:
+                best_ap = average_precesion
+                torch.save({'model': model.state_dict(),
+                        'epoch': epoch}, ckp_path.replace('last', 'best_ap'))
+
             with open(result_path, 'a') as f:
-                # f.writelines('Epoch:{}, Pixel Auroc:{:.3f}, Sample Auroc{:.3f}, Dice:{:3f} \n'.format(epoch, auroc_px, auroc_sp, dice_value))   
-                f.writelines('Epoch:{}, Sample Auroc{:.3f}, Dice:{:3f} \n'.format(epoch, auroc_sp, dice_value))   
+                f.writelines('Epoch:{}, Pixel Auroc:{:.3f}, Sample Auroc{:.3f}, Average Precesion{:3f}, Dice:{:3f} \n'.format(epoch, auroc_px, auroc_sp, average_precesion, dice_value))   
             
             torch.save({'model': model.state_dict(),
                         'epoch': epoch}, ckp_path)
@@ -276,16 +289,16 @@ if __name__=="__main__":
     parser.add_argument("-img_size", "--img_size", type=float, default=256, help="noise magnitude.")
     
     # need to be changed/checked every time
-    parser.add_argument('--bs', default = 8, action='store', type=int)
+    parser.add_argument('--bs', default = 32, action='store', type=int)
     parser.add_argument('--gpu_id', default=['0','1'], action='store', type=str, required=False)
-    parser.add_argument('--experiment_name', default='ColorJitter_reconstruction', choices=['DRAEM_Denoising_reconstruction, RandomShape_reconstruction, brain, head'], action='store')
+    parser.add_argument('--experiment_name', default='ColorJitter_reconstruction_full_train', choices=['DRAEM_Denoising_reconstruction, RandomShape_reconstruction, brain, head'], action='store')
     parser.add_argument('--colorRange', default=100, action='store')
     parser.add_argument('--threshold', default=200, action='store')
-    parser.add_argument('--dataset_name', default='hist_DIY', choices=['hist_DIY', 'Brain_MRI', 'CovidX', 'RESC_average'], action='store')
+    parser.add_argument('--dataset_name', default='BraTs', choices=['hist_DIY', 'Brain_MRI', 'CovidX', 'RESC_average','BraTs'], action='store')
     parser.add_argument('--model', default='ws_skip_connection', choices=['ws_skip_connection', 'DRAEM_reconstruction', 'DRAEM_discriminitive'], action='store')
     parser.add_argument('--process_method', default='ColorJitter', choices=['none', 'Guassian_noise', 'DRAEM', 'Simplex_noise'], action='store')
     parser.add_argument('--multi_layer', default=False, action='store')
-    parser.add_argument('--resume_training', default=True, action='store')
+    parser.add_argument('--resume_training', default=False, action='store')
     
     args = parser.parse_args()
    

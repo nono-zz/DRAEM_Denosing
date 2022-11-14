@@ -16,7 +16,7 @@ import torch.nn.functional as F
 import random
 
 from dataloader_zzx import MVTecDataset, Medical_dataset
-from evaluation_mood import evaluation, evaluation_DRAEM, evaluation_reconstruction
+from evaluation_mood import evaluation, evaluation_DRAEM, evaluation_reconstruction, evaluation_reconstruction_seg
 from cutpaste import CutPaste3Way, CutPasteUnion
 
 from model import ReconstructiveSubNetwork, DiscriminativeSubNetwork
@@ -112,7 +112,7 @@ def train_on_device(args):
     
     # device = torch.device('cuda:{}'.format(args.gpu_id))
     n_input = 1
-    n_classes = 1           # the target is the reconstructed image
+    n_classes = 2           # the target is the reconstructed image
     depth = 4
     wf = 6
     
@@ -141,15 +141,12 @@ def train_on_device(args):
         last_epoch = torch.load(ckp_path)['epoch']
         
     train_data = MVTecDataset(root=main_path, transform = test_transform, gt_transform=gt_transform, phase='train', dirs = dirs, data_source=args.experiment_name, args = args)
-    val_data = MVTecDataset(root=main_path, transform = test_transform, gt_transform=gt_transform, phase='test', dirs = dirs, data_source=args.experiment_name, args = args)
     test_data = MVTecDataset(root=main_path, transform = test_transform, gt_transform=gt_transform, phase='test', dirs = dirs, data_source=args.experiment_name, args = args)
         
     train_dataloader = torch.utils.data.DataLoader(train_data, batch_size = args.bs, shuffle=True)
-    val_dataloader = torch.utils.data.DataLoader(val_data, batch_size = args.bs, shuffle = False)
     test_dataloader = torch.utils.data.DataLoader(test_data, batch_size = 1, shuffle = False)
         
     loss_l1 = torch.nn.L1Loss()
-    # optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
     optimizer = torch.optim.Adam(model.parameters(), lr = args.lr)
     
     loss_l2 = torch.nn.modules.loss.MSELoss()
@@ -176,10 +173,10 @@ def train_on_device(args):
 
             rec = model(aug)
             
-            l1_loss = loss_l1(rec,img)
-            # ssim_loss = loss_ssim(rec, img)
+            l1_loss = loss_l1(rec[:,0,:,:],img)
+            seg_loss = loss_dice(rec[:,1,:,:], anomaly_mask)
             
-            loss = l1_loss
+            loss = l1_loss + seg_loss
             # Dice_loss = loss_diceBCE(out_mask_sm, anomaly_mask)
             
             # loss = l2_loss + ssim_loss + segment_loss
@@ -187,10 +184,11 @@ def train_on_device(args):
 
             
             save_image(aug, 'aug.png')
-            save_image(rec, 'rec_output.png')
+            save_image(rec[:,:1,:,:], 'rec_output.png')
             save_image(img, 'rec_target.png')
+            save_image(rec[:,1:,:,:], 'mask_pred.png')
             save_image(anomaly_mask, 'mask_target.png')
-            # loss = loss_l1(img, output)
+            
 
             optimizer.zero_grad()
             loss.backward()
@@ -202,48 +200,12 @@ def train_on_device(args):
         
         with open(result_path, 'a') as f:
             f.writelines('epoch [{}/{}], loss:{:.4f}'.format(args.epochs, epoch, mean(loss_list)))   
-                
-        # with torch.no_grad():
-        #     if (epoch) % 3 == 0:
-        #         model_segment.eval()
-        #         model_denoise.eval()
-        #         error_list = []
-        #         for img, gt, label, img_path, saves in val_dataloader:
-        #             img = img.cuda()
-        #             gt = gt.cuda()
-                    
-        #             rec = model_denoise(img)
-                    
-        #             joined_in = torch.cat((rec, img), dim=1)
-                    
-        #             out_mask = model_segment(joined_in)
-        #             out_mask_sm = torch.softmax(out_mask, dim=1)
-                    
-        #             if gt.max() != 0:
-        #                 segment_loss = loss_focal(out_mask_sm, gt)
-        #                 loss = segment_loss
-        #             else:
-        #                 continue
-                    
-        #             save_image(img, 'eval_aug.png')
-        #             save_image(rec, 'eval_rec_output.png')
-        #             save_image(gt, 'eval_mask_target.png')
-        #             save_image(out_mask_sm[:,1:,:,:], 'gt_mask_output.png')
-                    
-        #             error_list.append(loss.item())
-                
-        #         print('eval [{}/{}], error:{:.4f}'.format(args.epochs, epoch, mean(error_list)))
-                # visualizer.plot_loss(mean(error_list), epoch, loss_name='L1_loss_eval')
-                # visualizer.visualize_image_batch(input, epoch, image_name='target_eval')
-                # visualizer.visualize_image_batch(output, epoch, image_name='output_eval')
+            
                 
         if (epoch) % 10 == 0:
             model.eval()
-            # dice_value, auroc_px, auroc_sp = evaluation_reconstruction(args, model, test_dataloader, epoch, loss_l1, run_name)
-            # result_path = os.path.join('/home/zhaoxiang/output', run_name, 'results.txt')
-            # print('Pixel Auroc:{:.3f}, Sample Auroc{:.3f}, Dice{:3f}'.format(auroc_px, auroc_sp, dice_value))
             
-            dice_value, auroc_sp = evaluation_reconstruction(args, model, test_dataloader, epoch, loss_l1, run_name)
+            dice_value, auroc_sp = evaluation_reconstruction_seg(args, model, test_dataloader, epoch, loss_l1, run_name)
             result_path = os.path.join('/home/zhaoxiang/output', run_name, 'results.txt')
             print('Sample Auroc{:.3f}, Dice{:3f}'.format(auroc_sp, dice_value))
             
@@ -278,7 +240,7 @@ if __name__=="__main__":
     # need to be changed/checked every time
     parser.add_argument('--bs', default = 8, action='store', type=int)
     parser.add_argument('--gpu_id', default=['0','1'], action='store', type=str, required=False)
-    parser.add_argument('--experiment_name', default='ColorJitter_reconstruction', choices=['DRAEM_Denoising_reconstruction, RandomShape_reconstruction, brain, head'], action='store')
+    parser.add_argument('--experiment_name', default='ColorJitter_reconstruction_seg', choices=['DRAEM_Denoising_reconstruction, RandomShape_reconstruction, brain, head'], action='store')
     parser.add_argument('--colorRange', default=100, action='store')
     parser.add_argument('--threshold', default=200, action='store')
     parser.add_argument('--dataset_name', default='hist_DIY', choices=['hist_DIY', 'Brain_MRI', 'CovidX', 'RESC_average'], action='store')

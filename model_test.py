@@ -21,7 +21,7 @@ import torch.nn.functional as F
 import random
 
 from dataloader_zzx import MVTecDataset
-from evaluation_mood import evaluation, evaluation_reconstruction
+from evaluation_mood import evaluation, evaluation_reconstruction, evaluation_reconstruction_AP, evaluation_stats
 from cutpaste import CutPaste3Way, CutPasteUnion
 
 
@@ -104,8 +104,8 @@ def train_on_device(args):
     # run_name = args.experiment_name + '_' +str(args.lr)+'_'+str(args.epochs)+'_bs'+str(args.bs)+"_" + args.model + "_" + args.process_method
     run_name = args.experiment_name + '_' +str(args.lr)+'_'+str(args.epochs)+'_colorRange'+'_'+str(args.colorRange)+'_threshold'+'_'+str(args.threshold)+"_" + args.model + "_" + args.process_method
 
-    # main_path = '/home/zhaoxiang/dataset/{}'.format(args.dataset_name)
-    main_path = '/home/zhaoxiang/dataset/Atlas_train+LiTs_test'
+    main_path = '/home/zhaoxiang/dataset/{}'.format(args.dataset_name)
+    # main_path = '/home/zhaoxiang/dataset/Atlas_train+LiTs_test'
     
     data_transform, gt_transform = get_data_transforms(args.img_size, args.img_size)
     test_transform, _ = get_data_transforms(args.img_size, args.img_size)
@@ -134,29 +134,40 @@ def train_on_device(args):
     model = UNet(in_channels=n_input, n_classes=n_classes, norm="group", up_mode="upconv", depth=depth, wf=wf, padding=True).cuda()
         
     # load pretrained teacher weights
-    # ckp_path = os.path.join('/home/zhaoxiang', 'output', run_name, 'best.pth')
-    ckp_path = os.path.join('/home/zhaoxiang', 'output', run_name, 'last.pth')
+    ckp_path = os.path.join('/home/zhaoxiang', 'output', run_name, 'best_74.pth')
+    # ckp_path = os.path.join('/home/zhaoxiang', 'output', run_name, 'last.pth')
     model = torch.nn.DataParallel(model, device_ids=[0, 1])
     model.load_state_dict(torch.load(ckp_path)['model'])    
+    # test_data
     test_data = MVTecDataset(root=main_path, transform = test_transform, gt_transform=gt_transform, phase='test', dirs = dirs, data_source=args.experiment_name, args = args)
+    train_data = MVTecDataset(root=main_path, transform = test_transform, gt_transform=gt_transform, phase='train', dirs = dirs, data_source=args.experiment_name, args = args)
         
     test_dataloader = torch.utils.data.DataLoader(test_data, batch_size = 1, shuffle = False)
+    train_dataloader = torch.utils.data.DataLoader(train_data, batch_size = 1, shuffle = False)
+    # test_dataloader = torch.utils.data.DataLoader(test_data, batch_size = 1, shuffle = True)
         
-    
+    loss_l1 = torch.nn.L1Loss()
     epoch = 'test'
         
     model.eval()
     
     for threshold in np.arange(0.0060, 0.2, 0.002):
     # for threshold in np.arange(0.08, 0.10, 0.002):
-        dice_value, auroc_px, auroc_sp = evaluation_reconstruction(args, model, test_dataloader, epoch, loss_function, run_name, threshold=threshold)
+        # dice_value, auroc_px, auroc_sp = evaluation_reconstruction(args, model, test_dataloader, epoch, loss_function, run_name, threshold=threshold)
+        # dice_value, auroc_px, auroc_sp, average_precesion = evaluation_reconstruction_AP(args, model, test_dataloader, epoch, loss_l1, run_name, threshold = threshold)
+        # print('Threshold:{:.4f}, Pixel Auroc:{:.3f}, Sample Auroc{:.3f}, Dice{:3f}'.format(threshold, auroc_px, auroc_sp, dice_value))
         result_path = os.path.join('/home/zhaoxiang', 'output', run_name, 'results.txt')
-        print('Threshold:{:.4f}, Pixel Auroc:{:.3f}, Sample Auroc{:.3f}, Dice{:3f}'.format(threshold, auroc_px, auroc_sp, dice_value))
         
+        # with open(result_path, 'a') as f:
+        #     f.writelines('Threshold:{:.4f}, Epoch:{}, Pixel Auroc:{:.3f}, Sample Auroc{:.3f}, Dice:{:3f} \n'.format(threshold, epoch, auroc_px, auroc_sp, dice_value))     
+        #     # f.writelines('Pixel Auroc:{:.3f}, Sample Auroc{:.3f}, Pixel Aupro{:.3f}, Dice{:3f}'.format(auroc_px, auroc_sp, aupro_px, dice_value))                
+        result_path = os.path.join('/home/zhaoxiang', 'output', run_name, 'results.txt')
+        
+        # auroc_sp = evaluation_reconstruction(args, model, test_dataloader, epoch, loss_l1, run_name, threshold = threshold)
+        # evaluation_stats(args, model, test_dataloader, epoch, loss_l1, run_name, threshold = threshold)
+        evaluation_stats(args, model, train_dataloader, epoch, loss_l1, run_name, threshold = threshold)
         with open(result_path, 'a') as f:
-            f.writelines('Threshold:{:.4f}, Epoch:{}, Pixel Auroc:{:.3f}, Sample Auroc{:.3f}, Dice:{:3f} \n'.format(threshold, epoch, auroc_px, auroc_sp, dice_value))     
-            # f.writelines('Pixel Auroc:{:.3f}, Sample Auroc{:.3f}, Pixel Aupro{:.3f}, Dice{:3f}'.format(auroc_px, auroc_sp, aupro_px, dice_value))                
-        
+            f.writelines('Epoch:{}, Sample Auroc{:.3f}\n'.format(epoch, auroc_sp)) 
         
 
 if __name__=="__main__":
@@ -184,7 +195,7 @@ if __name__=="__main__":
     parser.add_argument('--experiment_name', default='ColorJitter_reconstruction', choices=['DRAEM_Denoising_reconstruction, RandomShape_reconstruction, brain, head'], action='store')
     parser.add_argument('--colorRange', default=100, action='store')
     parser.add_argument('--threshold', default=200, action='store')
-    parser.add_argument('--dataset_name', default='hist_DIY', choices=['hist_DIY', 'Brain_MRI', 'CovidX', 'RESC_average'], action='store')
+    parser.add_argument('--dataset_name', default='hist_DIY', choices=['hist_DIY', 'full_LiTs_histDIY', 'LiTs_with_labels', 'Brain_MRI', 'CovidX', 'RESC_average'], action='store')
     parser.add_argument('--model', default='ws_skip_connection', choices=['ws_skip_connection', 'DRAEM_reconstruction', 'DRAEM_discriminitive'], action='store')
     parser.add_argument('--process_method', default='ColorJitter', choices=['none', 'Guassian_noise', 'DRAEM', 'Simplex_noise'], action='store')
     parser.add_argument('--multi_layer', default=False, action='store')

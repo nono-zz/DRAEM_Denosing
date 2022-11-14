@@ -1,26 +1,22 @@
 from pickle import FALSE
-from matplotlib.pyplot import gray
 import torch
-from torch.utils.data import DataLoader
 from torch import optim
-from tensorboard_visualizer import TensorboardVisualizer
+# from tensorboard_visualizer import TensorboardVisualizer
 from loss import FocalLoss, SSIM, DiceLoss, DiceBCELoss
 import os
 from torchvision import transforms
 from torchvision.utils import save_image
-from torchvision.datasets import ImageFolder
 import numpy as np
 from tqdm import tqdm
 
 import torch.nn.functional as F
 import random
 
-from dataloader_zzx import MVTecDataset, Medical_dataset
-from evaluation_mood import evaluation, evaluation_DRAEM, evaluation_reconstruction
-from cutpaste import CutPaste3Way, CutPasteUnion
+from dataloader_zzx import MVTecDataset
+from evaluation_mood import evaluation_reconstruction
 
 from model import ReconstructiveSubNetwork, DiscriminativeSubNetwork
-
+from SUNet import SUNet_model
 def get_lr(optimizer):
     for param_group in optimizer.param_groups:
         return param_group['lr']
@@ -37,9 +33,6 @@ def weights_init(m):
         m.bias.data.fill_(0)
         
 def get_data_transforms(size, isize):
-    # mean_train = [0.485]         # how do you set the mean_train and std_train in the get_data_transforms function?
-    # mean_train = [-0.1]
-    # std_train = [0.229]
     data_transforms = transforms.Compose([
         # transforms.Resize((size, size)),
         # transforms.CenterCrop(isize),
@@ -56,24 +49,6 @@ def get_data_transforms(size, isize):
 
     return data_transforms, gt_transforms
 
-        
-        
-def add_Gaussian_noise(x, noise_res, noise_std, img_size):
-    ns = torch.normal(mean=torch.zeros(x.shape[0], x.shape[1], noise_res, noise_res), std=noise_std).to(x.device)
-
-    ns = F.upsample_bilinear(ns, size=[img_size, img_size])
-
-    # Roll to randomly translate the generated noise.
-    roll_x = random.choice(range(128))
-    roll_y = random.choice(range(128))
-    ns = torch.roll(ns, shifts=[roll_x, roll_y], dims=[-2, -1])
-
-    mask = x.sum(dim=1, keepdim=True) > 0.01
-    ns *= mask # Only apply the noise in the foreground.
-    res = x + ns
-    
-    return res
-        
 
 def train_on_device(args):
 
@@ -90,9 +65,6 @@ def train_on_device(args):
     
     data_transform, gt_transform = get_data_transforms(args.img_size, args.img_size)
     test_transform, _ = get_data_transforms(args.img_size, args.img_size)
-    train_transform = transforms.Compose([])
-    train_transform.transforms.append(CutPaste3Way(transform = test_transform))
-    # test_transform, _ = get_data_transforms(args.img_size, args.img_size)
 
     dirs = os.listdir(main_path)
     
@@ -122,6 +94,32 @@ def train_on_device(args):
         model = ReconstructiveSubNetwork(in_channels=n_input, out_channels=n_input).cuda()
     elif args.model == 'DRAEM_discriminitive':
         model = DiscriminativeSubNetwork(in_channels=n_input, out_channels=n_input).cuda()
+    elif args.model == 'SwinUnet':
+        import yaml
+        from warmup_scheduler import GradualWarmupScheduler
+        
+        with open('/home/zhaoxiang/DRAEM_Denosing/training.yaml', 'r') as config:
+            opt = yaml.safe_load(config)
+            
+        Train = opt['TRAINING']
+        OPT = opt['OPTIM']
+        mode = opt['MODEL']['MODE']
+        model_restored = SUNet_model(opt)
+        model_restored.cuda()
+        
+        ## Optimizer
+        start_epoch = 1
+        new_lr = float(OPT['LR_INITIAL'])
+        optimizer = optim.Adam(model_restored.parameters(), lr=new_lr, betas=(0.9, 0.999), eps=1e-8)
+        
+        warmup_epochs = 3
+        scheduler_cosine = optim.lr_scheduler.CosineAnnealingLR(optimizer, OPT['EPOCHS'] - warmup_epochs,
+                                                                eta_min=float(OPT['LR_MIN']))
+        scheduler = GradualWarmupScheduler(optimizer, multiplier=1, total_epoch=warmup_epochs, after_scheduler=scheduler_cosine)
+        scheduler.step()
+            
+            
+        
         
     base_path= '/home/zhaoxiang'
     output_path = os.path.join(base_path, 'output')
@@ -131,26 +129,18 @@ def train_on_device(args):
         os.makedirs(experiment_path, exist_ok=True)
     ckp_path = os.path.join(experiment_path, 'last.pth')
     
-    model = torch.nn.DataParallel(model, device_ids=[0, 1])
+    model_restored = torch.nn.DataParallel(model_restored, device_ids=[0, 1])
 
     result_path = os.path.join(experiment_path, 'results.txt')
-        
-    last_epoch = 0
-    if args.resume_training:
-        model.load_state_dict(torch.load(ckp_path)['model'])
-        last_epoch = torch.load(ckp_path)['epoch']
-        
     train_data = MVTecDataset(root=main_path, transform = test_transform, gt_transform=gt_transform, phase='train', dirs = dirs, data_source=args.experiment_name, args = args)
     val_data = MVTecDataset(root=main_path, transform = test_transform, gt_transform=gt_transform, phase='test', dirs = dirs, data_source=args.experiment_name, args = args)
     test_data = MVTecDataset(root=main_path, transform = test_transform, gt_transform=gt_transform, phase='test', dirs = dirs, data_source=args.experiment_name, args = args)
-        
-    train_dataloader = torch.utils.data.DataLoader(train_data, batch_size = args.bs, shuffle=True)
-    val_dataloader = torch.utils.data.DataLoader(val_data, batch_size = args.bs, shuffle = False)
+    train_dataloader = torch.utils.data.DataLoader(train_data, batch_size = args.bs, shuffle=False)
     test_dataloader = torch.utils.data.DataLoader(test_data, batch_size = 1, shuffle = False)
         
     loss_l1 = torch.nn.L1Loss()
-    # optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
-    optimizer = torch.optim.Adam(model.parameters(), lr = args.lr)
+    
+    
     
     loss_l2 = torch.nn.modules.loss.MSELoss()
     loss_ssim = SSIM()
@@ -158,14 +148,30 @@ def train_on_device(args):
     loss_dice = DiceLoss()
     loss_diceBCE = DiceBCELoss()
     
-    for epoch in range(last_epoch, args.epochs):
+    # Show the training configuration
+    print(f'''==> Training details:
+    ------------------------------------------------------------------
+        Restoration mode:   {mode}
+        Train patches size: {str(Train['TRAIN_PS']) + 'x' + str(Train['TRAIN_PS'])}
+        Val patches size:   {str(Train['VAL_PS']) + 'x' + str(Train['VAL_PS'])}
+        Start/End epochs:   {str(start_epoch) + '~' + str(OPT['EPOCHS'])}
+        Batch sizes:        {OPT['BATCH']}
+        Learning rate:      {OPT['LR_INITIAL']}
+    ''')
+    print('------------------------------------------------------------------')
+    
+    for epoch in range(0, args.epochs):
         # evaluation(args, model_denoise, model_segment, test_dataloader, epoch, loss_l1, visualizer, run_name)
-        # evaluation_reconstruction(args, model, test_dataloader, epoch, loss_l1, run_name)
-        
-        model.train()
+        model_restored.train()
         loss_list = []
         # dice_value, auroc_px, auroc_sp = evaluation_reconstruction(args, model, test_dataloader, epoch, loss_l1, run_name)
+        # dice_value, auroc_sp = evaluation_reconstruction(args, model_restored, test_dataloader, epoch, loss_l1, run_name)
+        
         for img, aug, anomaly_mask in tqdm(train_dataloader):
+            
+            for param in model_restored.parameters():
+                param.grad = None
+                
             img = torch.reshape(img, (-1, 1, args.img_size, args.img_size))
             aug = torch.reshape(aug, (-1, 1, args.img_size, args.img_size))
             anomaly_mask = torch.reshape(anomaly_mask, (-1, 1, args.img_size, args.img_size))
@@ -174,25 +180,20 @@ def train_on_device(args):
             aug = aug.cuda()
             anomaly_mask = anomaly_mask.cuda()
 
-            rec = model(aug)
+            restored = model_restored(aug)
             
-            l1_loss = loss_l1(rec,img)
-            # ssim_loss = loss_ssim(rec, img)
             
-            loss = l1_loss
-            # Dice_loss = loss_diceBCE(out_mask_sm, anomaly_mask)
+            loss = loss_l1(restored, img)
             
-            # loss = l2_loss + ssim_loss + segment_loss
-            # loss = Dice_loss
 
             
             save_image(aug, 'aug.png')
-            save_image(rec, 'rec_output.png')
+            save_image(restored, 'rec_output.png')
             save_image(img, 'rec_target.png')
             save_image(anomaly_mask, 'mask_target.png')
             # loss = loss_l1(img, output)
 
-            optimizer.zero_grad()
+            # optimizer.zero_grad()
             loss.backward()
             optimizer.step()
         
@@ -200,59 +201,28 @@ def train_on_device(args):
             
         print('epoch [{}/{}], loss:{:.4f}'.format(args.epochs, epoch, mean(loss_list)))
         
-        with open(result_path, 'a') as f:
-            f.writelines('epoch [{}/{}], loss:{:.4f}'.format(args.epochs, epoch, mean(loss_list)))   
-                
-        # with torch.no_grad():
-        #     if (epoch) % 3 == 0:
-        #         model_segment.eval()
-        #         model_denoise.eval()
-        #         error_list = []
-        #         for img, gt, label, img_path, saves in val_dataloader:
-        #             img = img.cuda()
-        #             gt = gt.cuda()
-                    
-        #             rec = model_denoise(img)
-                    
-        #             joined_in = torch.cat((rec, img), dim=1)
-                    
-        #             out_mask = model_segment(joined_in)
-        #             out_mask_sm = torch.softmax(out_mask, dim=1)
-                    
-        #             if gt.max() != 0:
-        #                 segment_loss = loss_focal(out_mask_sm, gt)
-        #                 loss = segment_loss
-        #             else:
-        #                 continue
-                    
-        #             save_image(img, 'eval_aug.png')
-        #             save_image(rec, 'eval_rec_output.png')
-        #             save_image(gt, 'eval_mask_target.png')
-        #             save_image(out_mask_sm[:,1:,:,:], 'gt_mask_output.png')
-                    
-        #             error_list.append(loss.item())
-                
-        #         print('eval [{}/{}], error:{:.4f}'.format(args.epochs, epoch, mean(error_list)))
-                # visualizer.plot_loss(mean(error_list), epoch, loss_name='L1_loss_eval')
-                # visualizer.visualize_image_batch(input, epoch, image_name='target_eval')
-                # visualizer.visualize_image_batch(output, epoch, image_name='output_eval')
+      
                 
         if (epoch) % 10 == 0:
-            model.eval()
-            # dice_value, auroc_px, auroc_sp = evaluation_reconstruction(args, model, test_dataloader, epoch, loss_l1, run_name)
+            model_restored.eval()
+            # dice_value, auroc_px, auroc_sp = evaluation_reconstruction(args, model_restored, test_dataloader, epoch, loss_l1, run_name)
             # result_path = os.path.join('/home/zhaoxiang/output', run_name, 'results.txt')
             # print('Pixel Auroc:{:.3f}, Sample Auroc{:.3f}, Dice{:3f}'.format(auroc_px, auroc_sp, dice_value))
             
-            dice_value, auroc_sp = evaluation_reconstruction(args, model, test_dataloader, epoch, loss_l1, run_name)
+            # with open(result_path, 'a') as f:
+            #     f.writelines('Epoch:{}, Pixel Auroc:{:.3f}, Sample Auroc{:.3f}, Dice:{:3f} \n'.format(epoch, auroc_px, auroc_sp, dice_value))   
+                
+            dice_value, auroc_sp = evaluation_reconstruction(args, model_restored, test_dataloader, epoch, loss_l1, run_name)
             result_path = os.path.join('/home/zhaoxiang/output', run_name, 'results.txt')
             print('Sample Auroc{:.3f}, Dice{:3f}'.format(auroc_sp, dice_value))
             
             with open(result_path, 'a') as f:
-                # f.writelines('Epoch:{}, Pixel Auroc:{:.3f}, Sample Auroc{:.3f}, Dice:{:3f} \n'.format(epoch, auroc_px, auroc_sp, dice_value))   
                 f.writelines('Epoch:{}, Sample Auroc{:.3f}, Dice:{:3f} \n'.format(epoch, auroc_sp, dice_value))   
             
-            torch.save({'model': model.state_dict(),
-                        'epoch': epoch}, ckp_path)
+            torch.save({'model': model_restored.state_dict(),
+                        'epoch': epoch,
+                        'optimizer': optimizer.state_dict()}, ckp_path,
+                       )
         
         
 
@@ -282,10 +252,10 @@ if __name__=="__main__":
     parser.add_argument('--colorRange', default=100, action='store')
     parser.add_argument('--threshold', default=200, action='store')
     parser.add_argument('--dataset_name', default='hist_DIY', choices=['hist_DIY', 'Brain_MRI', 'CovidX', 'RESC_average'], action='store')
-    parser.add_argument('--model', default='ws_skip_connection', choices=['ws_skip_connection', 'DRAEM_reconstruction', 'DRAEM_discriminitive'], action='store')
+    parser.add_argument('--model', default='SwinUnet', choices=['ws_skip_connection', 'DRAEM_reconstruction', 'DRAEM_discriminitive'], action='store')
     parser.add_argument('--process_method', default='ColorJitter', choices=['none', 'Guassian_noise', 'DRAEM', 'Simplex_noise'], action='store')
     parser.add_argument('--multi_layer', default=False, action='store')
-    parser.add_argument('--resume_training', default=True, action='store')
+    parser.add_argument('--resume_training', default=False, action='store')
     
     args = parser.parse_args()
    

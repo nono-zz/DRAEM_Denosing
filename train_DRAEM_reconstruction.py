@@ -20,6 +20,8 @@ from cutpaste import CutPaste3Way, CutPasteUnion
 
 from model import ReconstructiveSubNetwork, DiscriminativeSubNetwork
 
+from tqdm import tqdm
+
 def get_lr(optimizer):
     for param_group in optimizer.param_groups:
         return param_group['lr']
@@ -84,6 +86,7 @@ def train_on_device(args):
 
     # run_name = args.experiment_name + '_' +str(args.lr)+'_'+str(args.epochs)+'_bs'+str(args.bs)+"_"+"Guassian_blur"
     run_name = args.experiment_name + '_' +str(args.lr)+'_'+str(args.epochs)+'_colorRange'+'_'+str(args.colorRange)+'_threshold'+'_'+str(args.threshold)+"_" + args.model + "_" + args.process_method
+    run_name = args.experiment_name + '_' +str(args.lr)+'_'+str(700)+'_colorRange'+'_'+str(args.colorRange)+'_threshold'+'_'+str(args.threshold)+"_" + args.model + "_" + args.process_method
 
     main_path = '/home/zhaoxiang/dataset/{}'.format(args.dataset_name)
     
@@ -135,25 +138,31 @@ def train_on_device(args):
         experiment_path = os.path.join(output_path, run_name)
         if not os.path.exists(experiment_path):
             os.makedirs(experiment_path, exist_ok=True)
-        ckp_path = os.path.join(experiment_path, 'last.pth')
+        # ckp_path = os.path.join(experiment_path, 'last.pth')
+        # ckp_path = os.path.join(experiment_path, 'best.pth')
+        ckp_path = os.path.join(experiment_path, 'last_unshuffle.pth')
         
-        model_denoise = torch.nn.DataParallel(model_denoise, device_ids=[0, 1])
-        model_segment = torch.nn.DataParallel(model_segment, device_ids=[0, 1])
+        # model_denoise = torch.nn.DataParallel(model_denoise, device_ids=[0, 1])
+        # model_segment = torch.nn.DataParallel(model_segment, device_ids=[0, 1])
+        model_denoise = torch.nn.DataParallel(model_denoise, device_ids=[0])
+        model_segment = torch.nn.DataParallel(model_segment, device_ids=[0])
 
         result_path = os.path.join(experiment_path, 'results.txt')
         
     last_epoch = 0
     if args.resume_training:
         model_denoise.load_state_dict(torch.load(ckp_path)['model_denoise'])
-        model_segment.load_state_dict(torch.load(ckp_path)['model_segment'])
+        model_segment.load_state_dict(torch.load(ckp_path)['model'])
         last_epoch = torch.load(ckp_path)['epoch']
         
     train_data = MVTecDataset(root=main_path, transform = test_transform, gt_transform=gt_transform, phase='train', dirs = dirs, data_source=args.experiment_name, args = args)
     val_data = MVTecDataset(root=main_path, transform = test_transform, gt_transform=gt_transform, phase='test', dirs = dirs, data_source=args.experiment_name, args = args)
     test_data = MVTecDataset(root=main_path, transform = test_transform, gt_transform=gt_transform, phase='test', dirs = dirs, data_source=args.experiment_name, args = args)
+    # test_data = MVTecDataset(root='/home/zhaoxiang/dataset/LiTs_with_labels', transform = test_transform, gt_transform=gt_transform, phase='test', dirs = dirs, data_source=args.experiment_name, args = args)
         
-    train_dataloader = torch.utils.data.DataLoader(train_data, batch_size = args.bs, shuffle=False)
-    val_dataloader = torch.utils.data.DataLoader(val_data, batch_size = args.bs, shuffle = False)
+    train_dataloader = torch.utils.data.DataLoader(train_data, batch_size = args.bs, shuffle=True)
+    # val_dataloader = torch.utils.data.DataLoader(val_data, batch_size = args.bs, shuffle = False)
+    val_dataloader = torch.utils.data.DataLoader(val_data, batch_size = 1, shuffle = False)
     test_dataloader = torch.utils.data.DataLoader(test_data, batch_size = 1, shuffle = False)
         
     loss_l1 = torch.nn.L1Loss()
@@ -166,63 +175,70 @@ def train_on_device(args):
     loss_dice = DiceLoss()
     loss_diceBCE = DiceBCELoss()
     
+    
+    best_SP = 0
+    
     for epoch in range(last_epoch, args.epochs):
-        # evaluation(args, model_denoise, model_segment, test_dataloader, epoch, loss_l1, visualizer, run_name)
-        model_segment.train()
-        model_denoise.train()
-        loss_list = []
-        best_dice = 0
+        # # evaluation(args, model_denoise, model_segment, test_dataloader, epoch, loss_l1, visualizer, run_name)
+        # model_segment.train()
+        # model_denoise.train()
         
-        # evaluation_DRAEM(args, model_denoise, model_segment, test_dataloader, epoch, loss_l1, run_name)
-        # for img, label, img_path in train_dataloader:         
-        for img, aug, anomaly_mask in train_dataloader:
-            img = torch.reshape(img, (-1, 1, args.img_size, args.img_size))
-            aug = torch.reshape(aug, (-1, 1, args.img_size, args.img_size))
-            anomaly_mask = torch.reshape(anomaly_mask, (-1, 1, args.img_size, args.img_size))
-            
-            img = img.cuda()
-            aug = aug.cuda()
-            anomaly_mask = anomaly_mask.cuda()
-
-            rec = model_denoise(aug)
-            joined_in = torch.cat((rec, aug), dim=1)
-            
-            out_mask = model_segment(joined_in)
-            out_mask_sm = torch.softmax(out_mask, dim=1)
-
-            l2_loss = loss_l2(rec,img)
-            ssim_loss = loss_ssim(rec, img)
-            
-            if anomaly_mask.max() != 0:
-                segment_loss = loss_focal(out_mask_sm, anomaly_mask)
-                loss = segment_loss + l2_loss + ssim_loss
-            else:
-                loss = l2_loss + ssim_loss
-            # Dice_loss = loss_diceBCE(out_mask_sm, anomaly_mask)
-            
-            # loss = l2_loss + ssim_loss + segment_loss
-            # loss = Dice_loss
-
-            
-            save_image(aug, 'aug.png')
-            save_image(rec, 'rec_output.png')
-            save_image(img, 'rec_target.png')
-            save_image(anomaly_mask, 'mask_target.png')
-            save_image(out_mask_sm[:,1:,:,:], 'mask_output.png')
-            # loss = loss_l1(img, output)
-
-            optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
+        # # model_segment.eval()
+        # # model_denoise.eval()
+        # loss_list = []
         
-            loss_list.append(loss.item())
+        # # evaluation_DRAEM(args, model_denoise, model_segment, test_dataloader, epoch, loss_l1, run_name)
+        # # for img, label, img_path in train_dataloader:         
+        # for img, aug, anomaly_mask in tqdm(train_dataloader):
+        #     img = torch.reshape(img, (-1, 1, args.img_size, args.img_size))
+        #     aug = torch.reshape(aug, (-1, 1, args.img_size, args.img_size))
+        #     anomaly_mask = torch.reshape(anomaly_mask, (-1, 1, args.img_size, args.img_size))
             
-        print('epoch [{}/{}], loss:{:.4f}'.format(args.epochs, epoch, mean(loss_list)))
+        #     img = img.cuda()
+        #     aug = aug.cuda()
+        #     anomaly_mask = anomaly_mask.cuda()
+
+        #     rec = model_denoise(aug)
+        #     joined_in = torch.cat((rec, aug), dim=1)
+            
+        #     out_mask = model_segment(joined_in)
+        #     out_mask_sm = torch.softmax(out_mask, dim=1)
+
+        #     l2_loss = loss_l2(rec,img)
+        #     ssim_loss = loss_ssim(rec, img)
+            
+        #     if anomaly_mask.max() != 0:
+        #         segment_loss = loss_focal(out_mask_sm, anomaly_mask)
+        #         loss = segment_loss + l2_loss + ssim_loss
+        #     else:
+        #         loss = l2_loss + ssim_loss
+        #     # Dice_loss = loss_diceBCE(out_mask_sm[:,1,:,:], anomaly_mask)
+        #     # 
+        #     # loss = l2_loss + ssim_loss + Dice_loss
+        #     # loss = Dice_loss
+
+            
+        #     save_image(aug, 'aug.png')
+        #     save_image(rec, 'rec_output.png')
+        #     save_image(img, 'rec_target.png')
+        #     save_image(anomaly_mask, 'mask_target.png')
+        #     save_image(out_mask_sm[:,1:,:,:], 'mask_output.png')
+        #     # loss = loss_l1(img, output)
+
+        #     optimizer.zero_grad()
+        #     loss.backward()
+        #     optimizer.step()
+        
+        #     loss_list.append(loss.item())
+            
+        # print('epoch [{}/{}], loss:{:.4f} \n'.format(args.epochs, epoch, mean(loss_list)))
         
         # with torch.no_grad():
-        #     if (epoch) % 3 == 0:
+        #     if (epoch) % 10 == 0:
         #         model_segment.eval()
-        #         model_denoise.eval()
+        #         model_denoise.eval()                
+        #         # model_segment.train()
+        #         # model_denoise.train()
         #         error_list = []
         #         for img, gt, label, img_path, saves in val_dataloader:
         #             img = img.cuda()
@@ -241,39 +257,50 @@ def train_on_device(args):
         #             else:
         #                 continue
                     
-        #             save_image(img, 'eval_aug.png')
-        #             save_image(rec, 'eval_rec_output.png')
-        #             save_image(gt, 'eval_mask_target.png')
-        #             save_image(out_mask_sm[:,1:,:,:], 'gt_mask_output.png')
+        #             # save_image(img, 'eval_aug.png')
+        #             # save_image(rec, 'eval_rec_output.png')
+        #             # save_image(gt, 'eval_mask_target.png')
+        #             # save_image(out_mask_sm[:,1:,:,:], 'gt_mask_output.png')
+                    
+        #             save_image(out_mask_sm[:,1:,:,:], 'eval_mask_output.png')
                     
         #             error_list.append(loss.item())
                 
         #         print('eval [{}/{}], error:{:.4f}'.format(args.epochs, epoch, mean(error_list)))
-                # visualizer.plot_loss(mean(error_list), epoch, loss_name='L1_loss_eval')
-                # visualizer.visualize_image_batch(input, epoch, image_name='target_eval')
-                # visualizer.visualize_image_batch(output, epoch, image_name='output_eval')
+        #         # visualizer.plot_loss(mean(error_list), epoch, loss_name='L1_loss_eval')
+        #         # visualizer.visualize_image_batch(input, epoch, image_name='target_eval')
+        #         # visualizer.visualize_image_batch(output, epoch, image_name='output_eval')
                 
         if (epoch) % 10 == 0:
             model_segment.eval()
             model_denoise.eval()
-            dice_value, auroc_px, auroc_sp = evaluation_DRAEM(args, model_denoise, model_segment, test_dataloader, epoch, loss_l1, run_name)
+            # dice_value, auroc_px, auroc_sp = evaluation_DRAEM(args, model_denoise, model_segment, test_dataloader, epoch, loss_l1, run_name)
+            # result_path = os.path.join('/home/zhaoxiang/output', run_name, 'results.txt')
+            # print('Pixel Auroc:{:.3f}, Sample Auroc{:.3f}, Dice{:3f}'.format(auroc_px, auroc_sp, dice_value))
+            
+            # with open(result_path, 'a') as f:
+            #     f.writelines('Epoch:{}, Pixel Auroc:{:.3f}, Sample Auroc{:.3f}, Dice:{:3f} \n'.format(epoch, auroc_px, auroc_sp, dice_value))   
+            
+            
+            auroc_sp = evaluation_DRAEM(args, model_denoise, model_segment, test_dataloader, epoch, loss_l1, run_name)
             result_path = os.path.join('/home/zhaoxiang/output', run_name, 'results.txt')
-            print('Pixel Auroc:{:.3f}, Sample Auroc{:.3f}, Dice{:3f}'.format(auroc_px, auroc_sp, dice_value))
+            print('Sample Auroc{:.3f}'.format(auroc_sp))
             
             with open(result_path, 'a') as f:
-                f.writelines('Epoch:{}, Pixel Auroc:{:.3f}, Sample Auroc{:.3f}, Dice:{:3f} \n'.format(epoch, auroc_px, auroc_sp, dice_value))   
+                f.writelines('Epoch:{}, Sample Auroc{:.3f} \n'.format(epoch, auroc_sp)) 
+            
             
             # torch.save(model_segment.state_dict(), ckp_path.replace('last', 'segment'))
             torch.save({'model_denoise': model_denoise.state_dict(),
                         'model': model_segment.state_dict(),
                         'epoch': epoch}, ckp_path)
             
-            if dice_value > best_dice:
-                best_dice = dice_value
+            if auroc_sp > best_SP:
+                best_SP = auroc_sp
                 torch.save({'model_denoise': model_denoise.state_dict(),
                         'model': model_segment.state_dict(),
                         'epoch': epoch,
-                        'dice': dice_value}, ckp_path.replace('last', 'best'))
+                        'best_SP': best_SP}, ckp_path.replace('last', 'best_{}'.format(best_SP)))
                 
         
         
@@ -285,7 +312,7 @@ if __name__=="__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--obj_id', default=1,  action='store', type=int)
     parser.add_argument('--lr', default=0.0001, action='store', type=float)
-    parser.add_argument('--epochs', default=700, action='store', type=int)
+    parser.add_argument('--epochs', default=900, action='store', type=int)
     parser.add_argument('--checkpoint_path', default='./checkpoints/', action='store', type=str)
     parser.add_argument('--log_path', default='./logs/', action='store', type=str)
     parser.add_argument('--visualize', default=True, action='store_true')
@@ -307,7 +334,7 @@ if __name__=="__main__":
     parser.add_argument('--model', default='DRAEM', choices=['ws_skip_connection', 'DRAEM_reconstruction', 'DRAEM_discriminitive'], action='store')
     parser.add_argument('--process_method', default='Gaussian_noise', choices=['none', 'Guassian_noise', 'DRAEM', 'Simplex_noise'], action='store')
     parser.add_argument('--multi_layer', default=False, action='store')
-    parser.add_argument('--resume_training', default=False, action='store')
+    parser.add_argument('--resume_training', default=True, action='store')
     
     args = parser.parse_args()
    
