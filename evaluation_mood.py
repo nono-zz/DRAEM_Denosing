@@ -498,7 +498,6 @@ def evaluation_reconstruction(args, model, test_dataloader, epoch, loss_function
                     cv2.imwrite(reconstruction_path, rec*255)
                     
                     cv2.imwrite(gt_path, gt * 255)
-                    # cv2.imwrite(d_map_path, difference*255)
                             
                     prediction_map = np.where(difference > threshold, 255, 0)
                     cv2.imwrite(a_map_path, difference*255)
@@ -507,9 +506,9 @@ def evaluation_reconstruction(args, model, test_dataloader, epoch, loss_function
             prediction_map = np.where(difference > threshold, 1, 0)
 
         
-            # gt_list_px.extend(gt.astype(int).ravel())
+            gt_list_px.extend(gt.astype(int).ravel())
             # pr_list_px.extend(difference.ravel())
-            # pr_binary_list_px.extend(prediction_map.ravel())
+            pr_binary_list_px.extend(prediction_map.ravel())
             gt_list_sp.append(np.max(gt.astype(int)))
             pr_list_sp.append(np.max(difference))
             
@@ -524,7 +523,7 @@ def evaluation_reconstruction(args, model, test_dataloader, epoch, loss_function
             # dices.append(dice_sample_value)
             # a_map_max.append(difference.max())
         # 
-        # dice_value = dice(np.array(gt_list_px), np.array(pr_binary_list_px))
+        dice_value = dice(np.array(gt_list_px), np.array(pr_binary_list_px))
         # auroc_px = round(roc_auc_score(gt_list_px, pr_list_px), 3)
         auroc_sp = round(roc_auc_score(gt_list_sp, pr_list_sp), 3)
         
@@ -533,7 +532,7 @@ def evaluation_reconstruction(args, model, test_dataloader, epoch, loss_function
         # df.to_csv(csv_path, index=False)
         
     # return dice_value, auroc_px, auroc_sp
-    return auroc_sp
+    return dice_value, auroc_sp
 
 def evaluation_reconstruction_seg(args, model, test_dataloader, epoch, loss_function, run_name, threshold = 0.1):
     
