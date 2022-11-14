@@ -261,6 +261,10 @@ def evaluation_DRAEM(args, model_denoise, model_segment, test_dataloader, epoch,
             gt = gt[0,0,:,:].to('cpu').detach().numpy()  
             anomaly_map = anomaly_map[0,1,:,:].to('cpu').detach().numpy()  
             
+            # # binarize the anomaly map
+            # anomaly_map = np.where(anomaly_map > 0.5, 1, 0)
+            
+            
             for name in names:
                 if name in img_path[0]:
                     save_dir = os.path.join('/home/zhaoxiang', 'output', run_name, name)
@@ -309,13 +313,14 @@ def evaluation_DRAEM(args, model_denoise, model_segment, test_dataloader, epoch,
             # prediction_map = np.where(anomaly_map > threshold, 1, 0)
 
         
-            # gt_list_px.extend(gt.astype(int).ravel())
-            # pr_list_px.extend(anomaly_map.ravel())
+            gt_list_px.extend(gt.astype(int).ravel())
+            pr_list_px.extend(anomaly_map.ravel())
             # pr_binary_list_px.extend(prediction_map.ravel())
             gt_list_sp.append(np.max(gt.astype(int)))
             pr_list_sp.append(np.max(anomaly_map))
         
         # dice_value = dice(np.array(gt_list_px), np.array(pr_binary_list_px))
+        dice_value = dice(np.array(gt_list_px), np.array(pr_list_px))
         # auroc_px = round(roc_auc_score(gt_list_px, pr_list_px), 3)
         auroc_sp = round(roc_auc_score(gt_list_sp, pr_list_sp), 3)
         

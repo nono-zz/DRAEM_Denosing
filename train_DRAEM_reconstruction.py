@@ -161,8 +161,8 @@ def train_on_device(args):
     # test_data = MVTecDataset(root='/home/zhaoxiang/dataset/LiTs_with_labels', transform = test_transform, gt_transform=gt_transform, phase='test', dirs = dirs, data_source=args.experiment_name, args = args)
         
     train_dataloader = torch.utils.data.DataLoader(train_data, batch_size = args.bs, shuffle=True)
-    val_dataloader = torch.utils.data.DataLoader(val_data, batch_size = args.bs, shuffle = False)
-    # val_dataloader = torch.utils.data.DataLoader(val_data, batch_size = 1, shuffle = False)
+    # val_dataloader = torch.utils.data.DataLoader(val_data, batch_size = args.bs, shuffle = False)
+    val_dataloader = torch.utils.data.DataLoader(val_data, batch_size = 1, shuffle = False)
     test_dataloader = torch.utils.data.DataLoader(test_data, batch_size = 1, shuffle = False)
         
     loss_l1 = torch.nn.L1Loss()
@@ -233,43 +233,43 @@ def train_on_device(args):
             
         # print('epoch [{}/{}], loss:{:.4f} \n'.format(args.epochs, epoch, mean(loss_list)))
         
-        with torch.no_grad():
-            if (epoch) % 10 == 0:
-                model_segment.eval()
-                model_denoise.eval()                
-                # model_segment.train()
-                # model_denoise.train()
-                error_list = []
-                for img, gt, label, img_path, saves in val_dataloader:
-                    img = img.cuda()
-                    gt = gt.cuda()
+        # with torch.no_grad():
+        #     if (epoch) % 10 == 0:
+        #         model_segment.eval()
+        #         model_denoise.eval()                
+        #         # model_segment.train()
+        #         # model_denoise.train()
+        #         error_list = []
+        #         for img, gt, label, img_path, saves in val_dataloader:
+        #             img = img.cuda()
+        #             gt = gt.cuda()
                     
-                    rec = model_denoise(img)
+        #             rec = model_denoise(img)
                     
-                    joined_in = torch.cat((rec, img), dim=1)
+        #             joined_in = torch.cat((rec, img), dim=1)
                     
-                    out_mask = model_segment(joined_in)
-                    out_mask_sm = torch.softmax(out_mask, dim=1)
+        #             out_mask = model_segment(joined_in)
+        #             out_mask_sm = torch.softmax(out_mask, dim=1)
                     
-                    if gt.max() != 0:
-                        segment_loss = loss_focal(out_mask_sm, gt)
-                        loss = segment_loss
-                    else:
-                        continue
+        #             if gt.max() != 0:
+        #                 segment_loss = loss_focal(out_mask_sm, gt)
+        #                 loss = segment_loss
+        #             else:
+        #                 continue
                     
-                    # save_image(img, 'eval_aug.png')
-                    # save_image(rec, 'eval_rec_output.png')
-                    # save_image(gt, 'eval_mask_target.png')
-                    # save_image(out_mask_sm[:,1:,:,:], 'gt_mask_output.png')
+        #             # save_image(img, 'eval_aug.png')
+        #             # save_image(rec, 'eval_rec_output.png')
+        #             # save_image(gt, 'eval_mask_target.png')
+        #             # save_image(out_mask_sm[:,1:,:,:], 'gt_mask_output.png')
                     
-                    save_image(out_mask_sm[:,1:,:,:], 'eval_mask_output.png')
+        #             save_image(out_mask_sm[:,1:,:,:], 'eval_mask_output.png')
                     
-                    error_list.append(loss.item())
+        #             error_list.append(loss.item())
                 
-                print('eval [{}/{}], error:{:.4f}'.format(args.epochs, epoch, mean(error_list)))
-                # visualizer.plot_loss(mean(error_list), epoch, loss_name='L1_loss_eval')
-                # visualizer.visualize_image_batch(input, epoch, image_name='target_eval')
-                # visualizer.visualize_image_batch(output, epoch, image_name='output_eval')
+        #         print('eval [{}/{}], error:{:.4f}'.format(args.epochs, epoch, mean(error_list)))
+        #         # visualizer.plot_loss(mean(error_list), epoch, loss_name='L1_loss_eval')
+        #         # visualizer.visualize_image_batch(input, epoch, image_name='target_eval')
+        #         # visualizer.visualize_image_batch(output, epoch, image_name='output_eval')
                 
         if (epoch) % 10 == 0:
             model_segment.eval()
