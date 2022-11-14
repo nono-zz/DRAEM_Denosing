@@ -15,6 +15,7 @@ from torch.nn import functional as F
 import pathlib
 import csv
 from tqdm import tqdm
+from torchvision.utils import save_image
 
 import os
 
@@ -247,6 +248,8 @@ def evaluation_DRAEM(args, model_denoise, model_segment, test_dataloader, epoch,
             out_mask = model_segment(joined_in)
             out_mask_sm = torch.softmax(out_mask, dim=1)
             
+            
+            save_image(out_mask_sm[:,1:,:,:], 'eval_mask_output.png')
             initial_feature = img
 
             anomaly_map = out_mask_sm
