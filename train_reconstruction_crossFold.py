@@ -12,7 +12,7 @@ from tqdm import tqdm
 import torch.nn.functional as F
 import random
 
-from dataloader_zzx import MVTecDataset, MVTecDataset_cross_fold
+from dataloader_zzx import MVTecDataset, MVTecDataset_cross_validation
 from evaluation_mood import evaluation, evaluation_DRAEM, evaluation_reconstruction
 
 from model import ReconstructiveSubNetwork, DiscriminativeSubNetwork
@@ -112,9 +112,9 @@ def train_on_device(args):
         model.load_state_dict(torch.load(ckp_path)['model'])
         last_epoch = torch.load(ckp_path)['epoch']
         
-    train_data = MVTecDataset_cross_fold(root=main_path, transform = test_transform, gt_transform=gt_transform, phase='train', args = args, fold_index = Cross_fold_index)
-    val_data = MVTecDataset_cross_fold(root=main_path, transform = test_transform, gt_transform=gt_transform, phase='test', args = args, fold_index = Cross_fold_index)
-    test_data = MVTecDataset_cross_fold(root=main_path, transform = test_transform, gt_transform=gt_transform, phase='test', args = args, fold_index = Cross_fold_index)
+    train_data = MVTecDataset_cross_validation(root=main_path, transform = test_transform, gt_transform=gt_transform, phase='train', args = args, fold_index = Cross_fold_index)
+    val_data = MVTecDataset_cross_validation(root=main_path, transform = test_transform, gt_transform=gt_transform, phase='test', args = args, fold_index = Cross_fold_index)
+    test_data = MVTecDataset_cross_validation(root=main_path, transform = test_transform, gt_transform=gt_transform, phase='test', args = args, fold_index = Cross_fold_index)
         
     train_dataloader = torch.utils.data.DataLoader(train_data, batch_size = args.bs, shuffle=True)
     val_dataloader = torch.utils.data.DataLoader(val_data, batch_size = args.bs, shuffle = False)
@@ -131,41 +131,41 @@ def train_on_device(args):
     loss_diceBCE = DiceBCELoss()
     
     for epoch in range(last_epoch, args.epochs):
-        # evaluation_reconstruction(args, model, test_dataloader, epoch, loss_l1, run_name)
+        # # evaluation_reconstruction(args, model, test_dataloader, epoch, loss_l1, run_name)
         
-        model.train()
-        loss_list = []
-        for img, aug, anomaly_mask in tqdm(train_dataloader):
-            img = torch.reshape(img, (-1, 1, args.img_size, args.img_size))
-            aug = torch.reshape(aug, (-1, 1, args.img_size, args.img_size))
-            anomaly_mask = torch.reshape(anomaly_mask, (-1, 1, args.img_size, args.img_size))
+        # model.train()
+        # loss_list = []
+        # for img, aug, anomaly_mask in tqdm(train_dataloader):
+        #     img = torch.reshape(img, (-1, 1, args.img_size, args.img_size))
+        #     aug = torch.reshape(aug, (-1, 1, args.img_size, args.img_size))
+        #     anomaly_mask = torch.reshape(anomaly_mask, (-1, 1, args.img_size, args.img_size))
             
-            img = img.cuda()
-            aug = aug.cuda()
-            anomaly_mask = anomaly_mask.cuda()
+        #     img = img.cuda()
+        #     aug = aug.cuda()
+        #     anomaly_mask = anomaly_mask.cuda()
 
-            rec = model(aug)
+        #     rec = model(aug)
             
-            l1_loss = loss_l1(rec,img)
-            # ssim_loss = loss_ssim(rec, img)
+        #     l1_loss = loss_l1(rec,img)
+        #     # ssim_loss = loss_ssim(rec, img)
             
-            loss = l1_loss
+        #     loss = l1_loss
             
-            save_image(aug, 'aug.png')
-            save_image(rec, 'rec_output.png')
-            save_image(img, 'rec_target.png')
-            save_image(anomaly_mask, 'mask_target.png')
+        #     save_image(aug, 'aug.png')
+        #     save_image(rec, 'rec_output.png')
+        #     save_image(img, 'rec_target.png')
+        #     save_image(anomaly_mask, 'mask_target.png')
 
-            optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
+        #     optimizer.zero_grad()
+        #     loss.backward()
+        #     optimizer.step()
         
-            loss_list.append(loss.item())
+        #     loss_list.append(loss.item())
             
-        print('epoch [{}/{}], loss:{:.4f}'.format(args.epochs, epoch, mean(loss_list)))
+        # print('epoch [{}/{}], loss:{:.4f}'.format(args.epochs, epoch, mean(loss_list)))
         
-        with open(result_path, 'a') as f:
-            f.writelines('epoch [{}/{}], loss:{:.4f}'.format(args.epochs, epoch, mean(loss_list)))   
+        # with open(result_path, 'a') as f:
+        #     f.writelines('epoch [{}/{}], loss:{:.4f}'.format(args.epochs, epoch, mean(loss_list)))   
                 
         # with torch.no_grad():
         #     if (epoch) % 3 == 0:
@@ -242,14 +242,14 @@ if __name__=="__main__":
     # need to be changed/checked every time
     parser.add_argument('--bs', default = 8, action='store', type=int)
     parser.add_argument('--gpu_id', default=['0','1'], action='store', type=str, required=False)
-    parser.add_argument('--experiment_name', default='ColorJitter_reconstruction', choices=['DRAEM_Denoising_reconstruction, RandomShape_reconstruction, brain, head'], action='store')
+    parser.add_argument('--experiment_name', default='ColorJitter_reconstruction_CV', choices=['DRAEM_Denoising_reconstruction, RandomShape_reconstruction, brain, head'], action='store')
     parser.add_argument('--colorRange', default=100, action='store')
     parser.add_argument('--threshold', default=200, action='store')
-    parser.add_argument('--dataset_name', default='hist_DIY', choices=['hist_DIY', 'Brain_MRI', 'CovidX', 'RESC_average'], action='store')
+    parser.add_argument('--dataset_name', default='LiTs_with_labels', choices=['hist_DIY', 'Brain_MRI', 'CovidX', 'RESC_average'], action='store')
     parser.add_argument('--model', default='ws_skip_connection', choices=['ws_skip_connection', 'DRAEM_reconstruction', 'DRAEM_discriminitive'], action='store')
     parser.add_argument('--process_method', default='ColorJitter', choices=['none', 'Guassian_noise', 'DRAEM', 'Simplex_noise'], action='store')
     parser.add_argument('--multi_layer', default=False, action='store')
-    parser.add_argument('--resume_training', default=True, action='store')
+    parser.add_argument('--resume_training', default=False, action='store')
     
     args = parser.parse_args()
    

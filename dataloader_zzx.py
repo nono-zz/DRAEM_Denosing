@@ -286,15 +286,11 @@ class MVTecDataset(torch.utils.data.Dataset):
         
         
 class MVTecDataset_cross_validation(torch.utils.data.Dataset):
-    def __init__(self, root, transform, gt_transform, phase, dirs, data_source = 'liver', rgb=False, args=None):
-        if len(dirs) == 3:
-            [train_dir, test_dir, label_dir] = dirs
-        elif len(dirs) == 2:
-            [train_dir, test_dir] = dirs
-            
+    def __init__(self, root, transform, gt_transform, phase, data_source = 'liver', rgb=False, args=None, fold_index = 0):
         self.phase = phase
         self.transform = transform
         self.args = args
+        self.root = root
         
         self.cutpaste = CutPasteUnion(transform=self.transform)
 
@@ -302,76 +298,32 @@ class MVTecDataset_cross_validation(torch.utils.data.Dataset):
         self.data_source = data_source
         self.rgb = rgb
         
-        if phase == 'train':
-            self.img_path = os.path.join(root, 'train/good')
-            # self.img_paths = glob.glob(self.img_path + "/*.png")
-            if data_source == 'retina':
-                self.img_paths = glob.glob(self.img_path + "/*.bmp")
-            else:
-                self.img_paths = glob.glob(self.img_path + "/*.png")
-            self.img_paths.sort()
-        elif phase == 'test':
-            self.img_path = os.path.join(root, test_dir)
-            self.gt_path = os.path.join(root, label_dir)
-            # load dataset
-            self.img_paths, self.gt_paths = self.load_dataset()  # self.labels => good : 0, anomaly : 1
-            
-        elif phase == 'eval':
-            self.img_path = os.path.join(root, 'evaluation')
-            self.gt_path = os.path.join(root, 'evaluation_label')
-            self.img_paths, self.gt_paths = self.load_dataset()  # self.labels => good : 0, anomaly : 1
-
-    def load_dataset(self):         # only used in test phase
+        file_path = os.path.join(root, 'fold_{}.npy'.format(fold_index))
+        data = np.load(file_path, allow_pickle=True)
         
-        img_tot_paths = []
-        gt_tot_paths = []
-        tot_labels = []
-        tot_types = []
+        self.train_names = data.item()['Train_images']
+        self.test_names = data.item()['Test_images']
         
-        if self.data_source == 'retina':
-            defect_types = os.listdir(self.img_path)
-            for defect_type in defect_types:
-                if defect_type == 'good':
-                    img_paths = glob.glob(os.path.join(self.img_path, defect_type) + "/*.png")
-                    img_paths.sort()
-                    img_tot_paths.extend(img_paths)
-                    gt_tot_paths.extend(["/home/zhaoxiang/dataset/RESC_average/test_label/1.png"] * len(img_paths))
-
-                    tot_labels.extend([0] * len(img_paths))
-                    tot_types.extend(['good'] * len(img_paths))
-
-
-                elif defect_type == 'Ungood':
-                    img_paths = glob.glob(os.path.join(self.img_path, defect_type) + "/*.png")
-                    gt_paths = glob.glob(os.path.join(self.gt_path, defect_type) + "/*.png")
-                    img_paths.sort()
-                    gt_paths.sort()
-                    img_tot_paths.extend(img_paths)
-                    gt_tot_paths.extend(gt_paths)
-
-                    tot_labels.extend([1] * len(img_paths))
-                    tot_types.extend([defect_type] * len(img_paths))
+        self.train_labels = data.item()['Train_labels']
+        self.test_labels = data.item()['Test_labels']
         
-        
-        else:
-            img_paths = glob.glob(self.img_path + "/*.png")
-            gt_paths = glob.glob(self.gt_path + "/*.png")            # ground truth mask.
-            img_paths.sort()                        # list them with a specific sequence
-            gt_paths.sort()
-            img_tot_paths.extend(img_paths)         # what does extend means? add all the elements of an iterrable to the end of the list.
-            gt_tot_paths.extend(gt_paths)
-
-            assert len(img_tot_paths) == len(gt_tot_paths), "Number of test and ground truth pair doesn't match!"          # if not, then raise an error.
-
-        return img_tot_paths, gt_tot_paths
+        # retrieve all the healthy images as training samples
+        self.label_mask = np.array(self.train_labels)
+        self.label_mask = np.where(self.label_mask == 1, False, True)
+        self.train_names = self.train_names[self.label_mask]
 
     def __len__(self):
-        return len(self.img_paths)
+        if self.phase == 'train':
+            return len(self.train_names)
+        
+        else:
+            return len(self.test_names)
 
     def __getitem__(self, idx):
         
         if self.phase == 'train':
-            img_path = self.img_paths[idx]
+            img_name = self.train_names[idx]
+            img_path = os.path.join(self.root, 'image', img_name)
             img = Image.open(img_path)
             img = ImageOps.grayscale(img)
             img = img.resize([self.args.img_size, self.args.img_size])
@@ -410,8 +362,13 @@ class MVTecDataset_cross_validation(torch.utils.data.Dataset):
             return org_tensor, aug_tensor, gt_tensor
         
         else:
-            img_path, gt_path= self.img_paths[idx], self.gt_paths[idx]
-            # img = Image.open(img_path).convert('RGB')s
+            # img_path, gt_path= self.img_paths[idx], self.gt_paths[idx]
+            img_name = self.test_names[idx]
+            img_path = os.path.join(self.root, 'image', img_name)
+            
+            gt_name = img_name.replace('liver', 'liver_gt')
+            gt_path = os.path.join(self.root, 'image_labels', gt_name)
+            
             img = Image.open(img_path)
             img = ImageOps.grayscale(img)
             img = img.resize([self.args.img_size, self.args.img_size])
