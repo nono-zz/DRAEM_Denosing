@@ -357,7 +357,8 @@ def evaluation_DRAEM_with_device(args, model_denoise, model_segment, test_datalo
             out_mask = model_segment(joined_in)
             out_mask_sm = torch.softmax(out_mask, dim=1)
             
-            
+            save_image(img, 'eval_raw.png')
+            save_image(rec, 'eval_rec.png')
             save_image(out_mask_sm[:,1:,:,:], 'eval_mask_output.png')
             initial_feature = img
 
@@ -429,13 +430,17 @@ def evaluation_DRAEM_with_device(args, model_denoise, model_segment, test_datalo
             pr_list_sp.append(np.max(anomaly_map))
         
         # dice_value = dice(np.array(gt_list_px), np.array(pr_binary_list_px))
+        pr_binary_list_px = np.array(pr_list_px)
+        pr_binary_list_px = np.where(pr_binary_list_px > 0.5, 1, 0)
+        
         dice_value = dice(np.array(gt_list_px), np.array(pr_list_px))
+        binary_dice_value = dice(np.array(gt_list_px), np.array(pr_binary_list_px))
         # auroc_px = round(roc_auc_score(gt_list_px, pr_list_px), 3)
         auroc_sp = round(roc_auc_score(gt_list_sp, pr_list_sp), 3)
         
         
     # return dice_value, auroc_px, auroc_sp
-    return auroc_sp
+    return auroc_sp, binary_dice_value, dice_value
 
 def evaluation_reconstruction(args, model, test_dataloader, epoch, loss_function, run_name, threshold = 0.1):
     
