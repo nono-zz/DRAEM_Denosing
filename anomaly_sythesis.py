@@ -210,7 +210,7 @@ def colorJitterRandom_PIL(img_path, colorjitterScale=0):
     return new_img.astype(np.uint8), gt_mask.astype(np.uint8)
 
 
-def colorJitterRandom(img, colorRange = 150, colorjitterScale=0, threshold=200):
+def colorJitterRandom(img, colorRange = 150, minscale = 50, colorjitterScale=0, threshold=200):
     colorJitter_fn = transforms.ColorJitter(brightness = colorjitterScale,
                                                       contrast = colorjitterScale,
                                                       saturation = colorjitterScale,
@@ -219,7 +219,7 @@ def colorJitterRandom(img, colorRange = 150, colorjitterScale=0, threshold=200):
     # img = cv2.imread(img_path, cv2.IMREAD_GRAYSCALE)
     img = cv2.resize(img, [256, 256])
 
-    while abs(colorjitterScale) < 50:        # from 50 to 5
+    while abs(colorjitterScale) < minscale:        # from 50 to 5
         colorjitterScale = random.uniform(-colorRange,colorRange)
         
     color_mask = np.ones_like(img) * colorjitterScale
@@ -328,3 +328,53 @@ if __name__ == '__main__':
             # gt_mask = gt_mask.save(os.path.join(save_dir, f.replace('.png', '_gt.png')))
             cv2.imwrite(os.path.join(save_dir, f), new_img)
             cv2.imwrite(os.path.join(save_dir, f.replace('.png', '_gt.png')), gt_mask*255)
+            
+            
+if __name__ == '__main__':
+    
+    
+    root = '/home/zhaoxiang/DRAEM_Denosing/sample_liver_images'
+    img_names = os.listdir(os.path.join(root, 'raw'))
+    img_names.sort()
+    
+    
+    for j in range(20):
+        for img_name in img_names:
+        # for j in range(20):
+            # img_name = 'img0001_116_segmentation_flip_DIY_hist.png'
+            
+            img_path = os.path.join(root, 'raw', img_name)
+            img = Image.open(img_path)
+            img = ImageOps.grayscale(img)
+            img = img.resize([256, 256])
+
+            """ Sample level augmentation"""
+            img_numpy = np.array(img)
+            
+            # big light anomalies
+            colorJitter_img, colorJitter_gt = colorJitterRandom(img_numpy, colorRange=100, threshold=200)
+            while(colorJitter_gt.sum() == 0):
+                # small anomalies
+                colorJitter_img, colorJitter_gt_2 = colorJitterRandom(img_numpy, minscale=80, colorRange=100, threshold=230)
+                colorJitter_gt = np.where((colorJitter_gt + colorJitter_gt_2) > 0, 1, 0)
+                
+            img_save_path = os.path.join(root, 'aug', 'aug.png')
+            gt_save_path = os.path.join(root, 'mask', 'mask.png')
+            raw_save_path = os.path.join(root, 'raw', 'raw.png')
+            
+            cv2.imwrite(img_save_path, colorJitter_img)
+            cv2.imwrite(raw_save_path, img_numpy)
+            
+            cv2.imwrite(gt_save_path, colorJitter_gt*255)
+            
+            i = False
+            if i:
+                img_save_path = os.path.join(root, 'representative_cases', img_name.replace('.png', '_{}.png'.format(i)))
+                gt_save_path = os.path.join(root, 'representative_cases', 'gt_' + img_name.replace('.png', '_{}.png'.format(i)))
+                
+                cv2.imwrite(img_save_path, colorJitter_img)
+                cv2.imwrite(gt_save_path, colorJitter_gt*255)
+            
+        
+        
+        
