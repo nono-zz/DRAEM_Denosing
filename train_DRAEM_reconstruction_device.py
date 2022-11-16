@@ -143,7 +143,9 @@ def train_on_device(args):
             os.makedirs(experiment_path, exist_ok=True)
         # ckp_path = os.path.join(experiment_path, 'last.pth')
         # ckp_path = os.path.join(experiment_path, 'best.pth')
-        ckp_path = os.path.join(experiment_path, 'last_unshuffle.pth')
+        # ckp_path = os.path.join(experiment_path, 'last_unshuffle.pth')
+        ckp_path = os.path.join(experiment_path, 'best_0.859_0.43_Dice_370_epoch.pth')
+        
         
         # model_denoise = torch.nn.DataParallel(model_denoise, device_ids=[0, 1])
         # model_segment = torch.nn.DataParallel(model_segment, device_ids=[0, 1])
@@ -339,7 +341,7 @@ if __name__=="__main__":
     parser.add_argument('--model', default='DRAEM', choices=['ws_skip_connection', 'DRAEM_reconstruction', 'DRAEM_discriminitive'], action='store')
     parser.add_argument('--process_method', default='Gaussian_noise', choices=['none', 'Guassian_noise', 'DRAEM', 'Simplex_noise'], action='store')
     parser.add_argument('--multi_layer', default=False, action='store')
-    parser.add_argument('--resume_training', default=False, action='store')
+    parser.add_argument('--resume_training', default=True, action='store')
     
     args = parser.parse_args()
    

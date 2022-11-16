@@ -15,7 +15,7 @@ import torch.nn.functional as F
 import random
 
 from dataloader_zzx import MVTecDataset, MVTecDataset_cross_validation
-from evaluation_mood import evaluation, evaluation_DRAEM, evaluation_DRAEM_with_device
+from evaluation_mood import evaluation, evaluation_DRAEM, evaluation_DRAEM_with_device, evaluation_DRAEM_post_processing
 from cutpaste import CutPaste3Way, CutPasteUnion
 
 from model import ReconstructiveSubNetwork, DiscriminativeSubNetwork
@@ -276,7 +276,8 @@ def train_on_device(args, fold_index):
     
     # auroc_sp = evaluation_DRAEM(args, model_denoise, model_segment, test_dataloader, epoch, loss_l1, run_name)
     # auroc_sp = evaluation_DRAEM_with_device(args, model_denoise, model_segment, test_dataloader, epoch, loss_l1, run_name, device)
-    auroc_sp, binary_dice_value, dice_value = evaluation_DRAEM_with_device(args, model_denoise, model_segment, test_dataloader, epoch, loss_l1, run_name, device)
+    # auroc_sp, binary_dice_value, dice_value = evaluation_DRAEM_with_device(args, model_denoise, model_segment, test_dataloader, epoch, loss_l1, run_name, device)
+    auroc_sp, binary_dice_value, dice_value = evaluation_DRAEM_post_processing(args, model_denoise, model_segment, test_dataloader, epoch, loss_l1, run_name, device)
     result_path = os.path.join('/home/zhaoxiang/output', run_name, 'results.txt')
     print('Sample Auroc{:.3f}'.format(auroc_sp))
     

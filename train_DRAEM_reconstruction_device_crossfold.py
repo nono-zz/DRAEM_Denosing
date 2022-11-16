@@ -87,7 +87,8 @@ def train_on_device(args, fold_index):
         experiment_path = os.path.join(output_path, run_name)
         if not os.path.exists(experiment_path):
             os.makedirs(experiment_path, exist_ok=True)
-        ckp_path = os.path.join(experiment_path, 'best_0.859_0.43_Dice_370_epoch.pth')
+        # ckp_path = os.path.join(experiment_path, 'best_0.859_0.43_Dice_370_epoch.pth')
+        ckp_path = os.path.join(experiment_path, 'last.pth')
         # ckp_path = os.path.join(experiment_path, 'best_0.831_unshuffle.pth')
         
         
@@ -127,7 +128,9 @@ def train_on_device(args, fold_index):
     
     for epoch in range(last_epoch, args.epochs):
         model_segment.train()
-        model_denoise.train()
+        model_denoise.train()        
+        # model_segment.eval()
+        # model_denoise.eval()
         
         loss_list = []
         
@@ -206,28 +209,29 @@ def train_on_device(args, fold_index):
         #         # visualizer.plot_loss(mean(error_list), epoch, loss_name='L1_loss_eval')
         #         # visualizer.visualize_image_batch(input, epoch, image_name='target_eval')
         #         # visualizer.visualize_image_batch(output, epoch, image_name='output_eval')
-        model_segment.eval()
-        model_denoise.eval()
-      
-        auroc_sp, binary_dice_value, dice_value = evaluation_DRAEM_with_device(args, model_denoise, model_segment, test_dataloader, epoch, loss_l1, run_name, device)
-        result_path = os.path.join('/home/zhaoxiang/output', run_name, 'results.txt')
-        print('Sample Auroc{:.3f}'.format(auroc_sp))
-        
-        with open(result_path, 'a') as f:
-            f.writelines('Fold: {}, Epoch: {}, Sample Auroc: {:.3f} Dice: {:.3f} Dice_binary: {:.3f}  \n'.format(fold_index, epoch, auroc_sp, dice_value, binary_dice_value)) 
-        
             
-            torch.save(model_segment.state_dict(), ckp_path.replace('last', 'segment'))
-            torch.save({'model_denoise': model_denoise.state_dict(),
-                        'model': model_segment.state_dict(),
-                        'epoch': epoch}, ckp_path)
+        if epoch % 10 == 0: 
+            model_segment.eval()
+            model_denoise.eval()
+        
+            auroc_sp, binary_dice_value, dice_value = evaluation_DRAEM_with_device(args, model_denoise, model_segment, test_dataloader, epoch, loss_l1, run_name, device)
+            result_path = os.path.join('/home/zhaoxiang/output', run_name, 'results.txt')
+            print('Sample Auroc{:.3f}'.format(auroc_sp))
             
-            if auroc_sp > best_SP:
-                best_SP = auroc_sp
+            with open(result_path, 'a') as f:
+                f.writelines('Fold: {}, Epoch: {}, Sample Auroc: {:.3f} Dice: {:.3f} Dice_binary: {:.3f}  \n'.format(fold_index, epoch, auroc_sp, dice_value, binary_dice_value)) 
+            
+                
                 torch.save({'model_denoise': model_denoise.state_dict(),
-                        'model': model_segment.state_dict(),
-                        'epoch': epoch,
-                        'best_SP': best_SP}, ckp_path.replace('last', 'best_{}'.format(best_SP)))
+                            'model': model_segment.state_dict(),
+                            'epoch': epoch}, ckp_path)
+                
+                if auroc_sp > best_SP:
+                    best_SP = auroc_sp
+                    torch.save({'model_denoise': model_denoise.state_dict(),
+                            'model': model_segment.state_dict(),
+                            'epoch': epoch,
+                            'best_SP': best_SP}, ckp_path.replace('last', 'best_{}'.format(best_SP)))
             
         
         
