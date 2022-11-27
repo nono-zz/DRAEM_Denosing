@@ -82,6 +82,16 @@ def dice(pred, gt):
     intersection = (pred*gt).sum()
     return (2. * intersection)/(pred.sum() + gt.sum())
 
+
+def dice_tensor(a,b):
+    num = 2 * (a & b).sum()
+    den = a.sum() + b.sum()
+    den_float = den.float()
+    den_float[den == 0] = float("nan")
+     
+    return num.float() / den_float
+    
+
         
 def evaluation(args, classifier, decoder, bn, test_dataloader, epoch, loss_function, run_name, threshold = 0.5):
     
@@ -443,6 +453,133 @@ def evaluation_DRAEM_with_device(args, model_denoise, model_segment, test_datalo
     return auroc_sp, binary_dice_value, dice_value
 
 
+def evaluation_DRAEM_half(args, model_denoise, model_segment, test_dataloader, epoch, loss_function, run_name, device, threshold = 0.5):
+    
+    model_denoise.eval()
+    model_segment.eval()
+    
+    dice_error = []
+        
+    gt_list_px = []
+    pr_list_px = []
+    gt_list_sp = []
+    pr_list_sp = []
+    aupro_list = []
+    pr_binary_list_px = []
+    
+    y_true_ = torch.zeros(256*256*len(test_dataloader), dtype=torch.half)
+    y_pred_ = torch.zeros(256*256*len(test_dataloader), dtype=torch.half)
+    y_sample_true_ = torch.zeros(len(test_dataloader), dtype=torch.half)
+    y_sample_pred_ = torch.zeros(len(test_dataloader), dtype=torch.half)
+    i = 0
+    j = 0
+    
+    with torch.no_grad():
+        for img, gt, label, img_path, save in tqdm(test_dataloader):
+
+            img = img.to(device)
+            gt[gt > 0.1] = 1
+            gt[gt <= 0.1] = 0
+            
+            y_ = gt.view(-1)
+            # check if img is RGB
+            rec = model_denoise(img)
+                    
+            joined_in = torch.cat((rec, img), dim=1)
+            
+            out_mask = model_segment(joined_in)
+            out_mask_sm = torch.softmax(out_mask, dim=1)
+            
+            save_image(img, 'eval_raw.png')
+            save_image(rec, 'eval_rec.png')
+            save_image(out_mask_sm[:,1:,:,:], 'eval_mask_output.png')
+            initial_feature = img
+
+            anomaly_map = out_mask_sm
+            
+            # names = ['liver_1_60', 'liver_2_452', 'liver_3_394', 'liver_4_457', 'liver_6_396', 'liver_7_487', 'liver_10_379'] 
+            names = ['liver_1_59', 'liver_1_60', 'liver_1_66', 'liver_1_67', 'liver_2_415', 'liver_2_452', 'liver_3_394', 'liver_4_566', 'liver_4_457', 'liver_6_396', 'liver_8_448', 'liver_7_487', 'liver_10_328', 
+                            'liver_10_335' 'liver_10_356', 'liver_10_379',  'liver_10_295', 'liver_10_422' , 'liver_16_374', 'liver_16_409', 'liver_18_413', 'liver_19_440', 'liver_20_487', 'liver_21_388', 'liver_23_335',
+                            'liver_26_317', 'liver_27_414', 'liver_27_559', 'liver_13_393', 'liver_12_412', 'liver_11_413']
+            gt = gt[0,0,:,:].to('cpu').detach().numpy()  
+            anomaly_map = anomaly_map[0,1,:,:].to('cpu').detach().numpy()  
+            
+            # binarize the anomaly map
+            # anomaly_map = np.where(anomaly_map > 0.5, 1, 0)
+            y_hat = torch.from_numpy(anomaly_map)
+            y_hat = y_hat.reshape(-1)
+            
+            
+            for name in names:
+                if name in img_path[0]:
+                    save_dir = os.path.join('/home/zhaoxiang', 'output', run_name, name)
+                    
+                    
+                    a_map_path = os.path.join(save_dir, 'a_map_{}.png'.format(epoch))
+                    p_map_path = os.path.join(save_dir, 'p_map_{}.png'.format(epoch))
+                    d_map_path = os.path.join(save_dir, 'd_map_{}.png'.format(epoch))
+                    initial_feature_path = os.path.join(save_dir, 'raw.png')
+                    reconstruction_path = os.path.join(save_dir, 'reconstruction_{}.png'.format(epoch))
+                    gt_path = os.path.join(save_dir, 'gt.png')
+                    anomaly_map_rgb_path = os.path.join(save_dir, 'combine.png')
+                    
+                    if not os.path.exists(save_dir):
+                        pathlib.Path(save_dir).mkdir(parents=True, exist_ok=True)
+                        
+                    # save inital_feature and reconstruction
+                    initial_feature = min_max_norm(initial_feature[0,:,:,:].to('cpu').detach().numpy())
+                    initial_feature = np.transpose(initial_feature, (1,2,0))
+                    cv2.imwrite(initial_feature_path, initial_feature*255)
+                    
+                    rec = min_max_norm(rec[0,:,:,:].to('cpu').detach().numpy())
+                    rec = np.transpose(rec, (1,2,0))
+                    cv2.imwrite(reconstruction_path, rec*255)
+                    
+                    cv2.imwrite(gt_path, gt * 255)
+                    
+                    # anomaly_map = gaussian_filter(anomaly_map, sigma=4)
+                    cv2.imwrite(a_map_path, anomaly_map * 255)
+                    
+                    # combine
+                    label = cv2.imread(gt_path, cv2.IMREAD_GRAYSCALE)
+                    anomaly_map_rgb = cv2.imread(a_map_path)
+                    label = cv2.resize(label, [256, 256])                    
+                    anomaly_map_rgb[:,:,1] = label
+                    cv2.imwrite(anomaly_map_rgb_path, anomaly_map_rgb)
+                            
+                            
+                    prediction_map = np.where(anomaly_map > threshold, 255, 0)
+                    cv2.imwrite(a_map_path, anomaly_map*255)
+                    cv2.imwrite(p_map_path, prediction_map)
+            
+            y_sample_true_[j] = (y_.max()).half()
+            y_sample_pred_[j] = (y_hat.max()).half()
+            
+            y_true_[i:i + y_.numel()] = y_.half()
+            y_pred_[i:i + y_hat.numel()] = y_hat.half()
+            i += y_.numel()
+            j += 1
+         
+         
+        # y_sample_true_ = y_sample_true_.to(device)   
+        # y_sample_pred_ = y_sample_pred_.to(device)
+
+        device_dice = torch.device('cuda:{}'.format('0'))
+
+        y_true_ = y_true_.to(device_dice)
+        y_pred_ = y_pred_.to(device_dice)
+            
+        dice_value = dice_tensor(y_true_ > 0.5, y_pred_ > 0.5).cpu().item()
+        auroc_sp = round(roc_auc_score(y_sample_true_, y_sample_pred_), 3)
+        
+        del y_true_
+        del y_pred_
+        
+        
+    # return dice_value, auroc_px, auroc_sp
+    return auroc_sp, dice_value
+
+
 def evaluation_DRAEM_post_processing(args, model_denoise, model_segment, test_dataloader, epoch, loss_function, run_name, device, threshold = 0.5):
     
     model_denoise.eval()
@@ -490,21 +627,6 @@ def evaluation_DRAEM_post_processing(args, model_denoise, model_segment, test_da
             
             # postprocessing
             anomaly_map = np.where(anomaly_map > 0.5, 1, 0)
-            cv2.imwrite('eval_mask_output_beforeprocess.png', anomaly_map*255)
-            
-            kernel = np.ones((5, 5), np.uint8)      # 0.493212795291984
-            # kernel = np.ones((3, 3), np.uint8)
-            anomaly_map = anomaly_map.astype(np.uint8)
-            anomaly_map_erosion = cv2.erode(anomaly_map, kernel, iterations=1)
-            anomaly_map_dilation = cv2.dilate(anomaly_map_erosion, kernel, iterations=1)
-            cv2.imwrite('eval_mask_output_postprocess.png', anomaly_map_dilation*255)
-            
-            
-            # open and close
-            kernel = np.ones((5,5),np.uint8)
-            anomaly_map_open = cv2.morphologyEx(anomaly_map, cv2.MORPH_OPEN, kernel)
-            anomaly_map_close = cv2.morphologyEx(anomaly_map_open, cv2.MORPH_CLOSE, kernel)
-            cv2.imwrite('eval_mask_output_openclose.png', anomaly_map_close*255)
             
             for name in names:
                 if name in img_path[0]:
@@ -547,23 +669,15 @@ def evaluation_DRAEM_post_processing(args, model_denoise, model_segment, test_da
                     prediction_map = np.where(anomaly_map > threshold, 255, 0)
                     cv2.imwrite(a_map_path, anomaly_map*255)
                     cv2.imwrite(p_map_path, prediction_map)
-            
 
-            # anomaly_map = gaussian_filter(anomaly_map, sigma=4)
-            # prediction_map = np.where(min_max_norm(anomaly_map) > threshold, 1, 0)
-            # prediction_map = np.where(anomaly_map > threshold, 1, 0)
 
-        
+
             gt_list_px.extend(gt.astype(int).ravel())
             pr_list_px.extend(anomaly_map.ravel())
-            pr_post_list_px.extend(anomaly_map_dilation.ravel())
-            pr_open_list_px.extend(anomaly_map_close.ravel())
             gt_list_sp.append(np.max(gt.astype(int)))
             pr_list_sp.append(np.max(anomaly_map))
         
         dice_value = dice(np.array(gt_list_px), np.array(pr_list_px))
-        post_dice_value = dice(np.array(gt_list_px), np.array(pr_post_list_px))
-        open_dice_value = dice(np.array(gt_list_px), np.array(pr_open_list_px))
         auroc_sp = round(roc_auc_score(gt_list_sp, pr_list_sp), 3)
         
         

@@ -286,7 +286,7 @@ class MVTecDataset(torch.utils.data.Dataset):
         
         
 class MVTecDataset_cross_validation(torch.utils.data.Dataset):
-    def __init__(self, root, transform, gt_transform, phase, data_source = 'liver', rgb=False, args=None, fold_index = 0):
+    def __init__(self, root, transform, gt_transform, phase, data_source = 'liver', rgb=False, args=None, fold_index = 0, test_whole=True):
         self.phase = phase
         self.transform = transform
         self.args = args
@@ -304,6 +304,9 @@ class MVTecDataset_cross_validation(torch.utils.data.Dataset):
         self.train_names = data.item()['Train_images']
         self.test_names = data.item()['Test_images']
         
+        if test_whole:
+            self.test_names = os.listdir('/home/zhaoxiang/dataset/LiTs_with_labels/image')
+        
         self.train_labels = data.item()['Train_labels']
         self.test_labels = data.item()['Test_labels']
         
@@ -311,6 +314,17 @@ class MVTecDataset_cross_validation(torch.utils.data.Dataset):
         self.label_mask = np.array(self.train_labels)
         self.label_mask = np.where(self.label_mask == 1, False, True)
         self.train_names = self.train_names[self.label_mask]
+        
+        
+        self.PILtoTensor_transform = transforms.Compose([
+                    transforms.RandomHorizontalFlip(0.5),
+                    transforms.RandomVerticalFlip(0.5),
+                    transforms.RandomRotation(10),
+                    # transforms.RandomCrop([10, 10]),              # 先不加crop
+                    transforms.RandomAffine(10),
+                    transforms.RandomAutocontrast(0.2)
+                    # transforms.ToTensor()
+                    ])
 
     def __len__(self):
         if self.phase == 'train':
@@ -327,6 +341,10 @@ class MVTecDataset_cross_validation(torch.utils.data.Dataset):
             img = Image.open(img_path)
             img = ImageOps.grayscale(img)
             img = img.resize([self.args.img_size, self.args.img_size])
+            img.save('before_transformations.png')
+            
+            img = self.PILtoTensor_transform(img)
+            img.save('random_transformations.png')
             
             """ Sample level augmentation"""
             img_numpy = np.array(img)

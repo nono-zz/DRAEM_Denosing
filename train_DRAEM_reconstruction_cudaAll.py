@@ -112,29 +112,29 @@ def train_on_device(args):
 
     from model_noise import UNet
     
-    device = torch.device('cuda:{}'.format(args.gpu_id))
+    # device = torch.device('cuda:{}'.format(args.gpu_id))
     n_input = 1
     n_classes = 1           # the target is the reconstructed image
     depth = 4
     wf = 6
     
     if args.model == 'ws_skip_connection':
-        model = UNet(in_channels=n_input, n_classes=n_classes, norm="group", up_mode="upconv", depth=depth, wf=wf, padding=True).to(device)
+        model = UNet(in_channels=n_input, n_classes=n_classes, norm="group", up_mode="upconv", depth=depth, wf=wf, padding=True).cuda()
     elif args.model == 'DRAEM_reconstruction':
-        model = ReconstructiveSubNetwork(in_channels=n_input, out_channels=n_input).to(device)
+        model = ReconstructiveSubNetwork(in_channels=n_input, out_channels=n_input).cuda()
     elif args.model == 'DRAEM_discriminitive':
-        model = DiscriminativeSubNetwork(in_channels=n_input, out_channels=n_input).to(device)
+        model = DiscriminativeSubNetwork(in_channels=n_input, out_channels=n_input).cuda()
     elif args.model == 'DRAEM':
-        model_denoise = UNet(in_channels=n_input, n_classes=n_classes, norm="group", up_mode="upconv", depth=depth, wf=wf, padding=True).to(device)
-        model_segment = DiscriminativeSubNetwork(in_channels=2, out_channels=2).to(device)
+        model_denoise = UNet(in_channels=n_input, n_classes=n_classes, norm="group", up_mode="upconv", depth=depth, wf=wf, padding=True).cuda()
+        model_segment = DiscriminativeSubNetwork(in_channels=2, out_channels=2).cuda()
         
-        model_denoise.to(device)
-        model_segment.to(device)
+        model_denoise.cuda()
+        model_segment.cuda()
         # model_denoise = torch.nn.DataParallel(model_denoise, device_ids=[0])
         # model_segment = torch.nn.DataParallel(model_segment, device_ids=[0])
         
-        # model_denoise = torch.nn.DataParallel(model_denoise, device_ids=[0, 1])
-        # model_segment = torch.nn.DataParallel(model_segment, device_ids=[0, 1])
+        model_denoise = torch.nn.DataParallel(model_denoise, device_ids=[0, 1])
+        model_segment = torch.nn.DataParallel(model_segment, device_ids=[0, 1])
         base_path= '/home/zhaoxiang'
         output_path = os.path.join(base_path, 'output')
 
@@ -175,7 +175,9 @@ def train_on_device(args):
     optimizer = torch.optim.Adam(list(model_segment.parameters()) + list(model_denoise.parameters()), lr = args.lr)
     
     loss_l2 = torch.nn.modules.loss.MSELoss()
-    loss_ssim = SSIM(device=device)
+
+    # loss_ssim = SSIM(device=device)
+    loss_ssim = SSIM()
     loss_focal = FocalLoss()
     loss_dice = DiceLoss()
     loss_diceBCE = DiceBCELoss()
@@ -194,9 +196,9 @@ def train_on_device(args):
             aug = torch.reshape(aug, (-1, 1, args.img_size, args.img_size))
             anomaly_mask = torch.reshape(anomaly_mask, (-1, 1, args.img_size, args.img_size))
             
-            img = img.to(device)
-            aug = aug.to(device)
-            anomaly_mask = anomaly_mask.to(device)
+            img = img.cuda()
+            aug = aug.cuda()
+            anomaly_mask = anomaly_mask.cuda()
 
             rec = model_denoise(aug)
             joined_in = torch.cat((rec, aug), dim=1)
@@ -298,8 +300,8 @@ if __name__=="__main__":
     
     # need to be changed/checked every time
     parser.add_argument('--bs', default = 8, action='store', type=int)
-    # parser.add_argument('--gpu_id', default=['0','1'], action='store', type=str, required=False)
-    parser.add_argument('--gpu_id', default='1', action='store', type=str, required=False)
+    parser.add_argument('--gpu_id', default=['0','1'], action='store', type=str, required=False)
+    # parser.add_argument('--gpu_id', default='1', action='store', type=str, required=False)
     parser.add_argument('--experiment_name', default='DRAEM_Denoising_full_test', choices=['DRAEM_Denoising_reconstruction, liver, brain, head'], action='store')
     parser.add_argument('--colorRange', default=100, action='store')
     parser.add_argument('--threshold', default=200, action='store')
@@ -311,18 +313,18 @@ if __name__=="__main__":
     
     args = parser.parse_args()
    
-    # os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
-    # if args.gpu_id is None:
-    #     gpus = "0"
-    #     os.environ["CUDA_VISIBLE_DEVICES"]= gpus
-    # else:
-    #     gpus = ""
-    #     for i in range(len(args.gpu_id)):
-    #         gpus = gpus + args.gpu_id[i] + ","
-    #     os.environ["CUDA_VISIBLE_DEVICES"]= gpus[:-1]
+    os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
+    if args.gpu_id is None:
+        gpus = "0"
+        os.environ["CUDA_VISIBLE_DEVICES"]= gpus
+    else:
+        gpus = ""
+        for i in range(len(args.gpu_id)):
+            gpus = gpus + args.gpu_id[i] + ","
+        os.environ["CUDA_VISIBLE_DEVICES"]= gpus[:-1]
 
-    # torch.backends.cudnn.enabled = True # make sure to use cudnn for computational performance
+    torch.backends.cudnn.enabled = True # make sure to use cudnn for computational performance
 
-    # with torch.cuda.device(args.gpu_id):
-    train_on_device(args)
+    with torch.cuda.device(args.gpu_id):
+        train_on_device(args)
 
