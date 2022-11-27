@@ -407,6 +407,111 @@ class MVTecDataset_cross_validation(torch.utils.data.Dataset):
                 
             save = False
             return img, gt, label, img_path, save
+        
+        
+        
+class MVTecDataset_fixed(torch.utils.data.Dataset):
+    def __init__(self, root, transform, gt_transform, phase, data_source = 'liver', rgb=False, args=None):
+            
+        self.phase = phase
+        self.transform = transform
+        self.args = args
+        
+
+        self.gt_transform = gt_transform
+        
+        if phase == 'train':
+            
+            self.raw_path = os.path.join(root, 'train_raw')
+            self.aug_path = os.path.join(root, 'train_aug')
+            self.gt_path = os.path.join(root, 'train_label')
+            
+            self.raw_paths = glob.glob(self.raw_path + "/*.png")
+            self.raw_paths.sort()
+            self.aug_paths = glob.glob(self.aug_path + "/*.png")
+            self.aug_paths.sort()
+            self.gt_paths = glob.glob(self.gt_path + "/*.png")
+            self.gt_paths.sort()
+        elif phase == 'test':
+            self.img_path = os.path.join(root, 'test')
+            self.gt_path = os.path.join(root, 'test_label')
+            # load dataset
+            self.img_paths, self.gt_paths = self.load_dataset()  # self.labels => good : 0, anomaly : 1
+            
+        elif phase == 'eval':
+            self.img_path = os.path.join(root, 'evaluation')
+            self.gt_path = os.path.join(root, 'evaluation_label')
+            self.img_paths, self.gt_paths = self.load_dataset()  # self.labels => good : 0, anomaly : 1
+
+    def load_dataset(self):         # only used in test phase
+        
+        img_tot_paths = []
+        gt_tot_paths = []
+        tot_labels = []
+        tot_types = []
+        
+
+        img_paths = glob.glob(self.img_path + "/*.png")
+        gt_paths = glob.glob(self.gt_path + "/*.png")            # ground truth mask.
+        img_paths.sort()                        # list them with a specific sequence
+        gt_paths.sort()
+        img_tot_paths.extend(img_paths)         # what does extend means? add all the elements of an iterrable to the end of the list.
+        gt_tot_paths.extend(gt_paths)
+
+        assert len(img_tot_paths) == len(gt_tot_paths), "Number of test and ground truth pair doesn't match!"          # if not, then raise an error.
+
+        return img_tot_paths, gt_tot_paths
+
+    def __len__(self):
+        return len(self.raw_paths)
+
+    def __getitem__(self, idx):
+        
+        if self.phase == 'train':
+            raw_path = self.raw_paths[idx]
+            aug_path = self.aug_paths[idx]
+            gt_path = self.gt_paths[idx]
+            
+            raw = Image.open(raw_path)
+            raw = ImageOps.grayscale(raw)
+            raw = raw.resize([self.args.img_size, self.args.img_size])
+            raw = self.transform(raw)
+            
+            aug = Image.open(aug_path)
+            aug = ImageOps.grayscale(aug)
+            aug = aug.resize([self.args.img_size, self.args.img_size])
+            aug = self.transform(aug)
+            
+            gt = Image.open(gt_path)
+            gt = ImageOps.grayscale(gt)
+            gt = gt.resize([self.args.img_size, self.args.img_size])
+            gt = self.gt_transform(gt)
+            
+            return raw, aug, gt
+        
+        else:
+            img_path, gt_path= self.img_paths[idx], self.gt_paths[idx]
+            # img = Image.open(img_path).convert('RGB')s
+            img = Image.open(img_path)
+            img = ImageOps.grayscale(img)
+            img = img.resize([self.args.img_size, self.args.img_size])
+            if self.rgb:    
+                img = img.convert('RGB')
+            img = self.transform(img)
+            
+            gt = Image.open(gt_path)
+            gt = ImageOps.grayscale(gt)
+            gt = gt.resize([self.args.img_size, self.args.img_size])
+            gt = self.gt_transform(gt)
+
+            # determine the label
+            if torch.sum(gt) != 0:
+                label = 1
+            else:
+                label = 0
+                
+            save = False
+            return img, gt, label, img_path, save
     
     
     

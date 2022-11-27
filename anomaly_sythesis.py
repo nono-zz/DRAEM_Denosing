@@ -270,80 +270,26 @@ def colorJitterRandom_Mask(img, colorRange = 150, colorjitterScale=0):
     # return new_img.reshape([img.shape[0], img.shape[1]]), gt_mask.reshape([img.shape[0], img.shape[1]])
     return new_img.astype(np.uint8), gt_mask.astype(np.uint8)
     
-    
 
-    
-    
-if __name__ == '__main__':
-    
-    # method = blackStrip
-    method = distortion
-    method = randomShape
-    method = colorJitterRandom
-    
-    # method = cp
-    cutpaste = CutPasteUnion(transform=None)
-    
-    img_dir = '/home/zhaoxiang/mood_challenge/Sample_images/raw'
-    save_dir = '/home/zhaoxiang/mood_challenge/Sample_images/{}'.format(method.__name__)
-    if not os.path.exists(save_dir):
-        os.mkdir(save_dir)
-        
-        
-    files = os.listdir(img_dir)
-    files.sort()
-    for f in files:
-        img_path = os.path.join(img_dir, f)
-        img = cv2.imread(img_path, cv2.IMREAD_GRAYSCALE)
-        
-        
-        # mask = np.where(img>0, 255, 0)
-        # mask = mask.astype(np.uint8)
-        # kernel = np.ones((5, 5), np.uint8)
-        # mask_dil = cv2.dilate(mask, kernel, iterations=1)
-        # cv2.imwrite('mask.png',mask_dil)
-        
-        if img.max() == 0:
-            continue
-        """cutpaste"""
-        # org, cut_img = cp(img_path)
-        # cut_img = cut_img.save(os.path.join(save_dir, f))
-        
-        
-        """other augmentations"""
-        try:
-            new_img, gt_mask = method(img)
-            
-            
-            cv2.imwrite(os.path.join(save_dir, f), new_img)
-            cv2.imwrite(os.path.join(save_dir, f.replace('.png', '_gt.png')), gt_mask*255)
-        except:
-            # new_img = method(img)
-            # cv2.imwrite(os.path.join(save_dir, f), new_img)
-            
-            new_img, gt_mask = method(img_path)
-            # save_image(new_img, os.path.join(save_dir, f))
-            # save_image(gt_mask*255, save_dir, f.replace('.png', '_gt.png'))
-            # new_img = new_img.save(os.path.join(save_dir, f))
-            # gt_mask = gt_mask.save(os.path.join(save_dir, f.replace('.png', '_gt.png')))
-            cv2.imwrite(os.path.join(save_dir, f), new_img)
-            cv2.imwrite(os.path.join(save_dir, f.replace('.png', '_gt.png')), gt_mask*255)
             
             
 if __name__ == '__main__':
     
     
-    root = '/home/zhaoxiang/DRAEM_Denosing/sample_liver_images'
-    img_names = os.listdir(os.path.join(root, 'raw'))
+    # root = '/home/zhaoxiang/DRAEM_Denosing/sample_liver_images'
+    # img_names = os.listdir(os.path.join(root, 'raw'))
+    root = '/home/zhaoxiang/dataset/hist_DIY/train/good'
+    dst_root = '/home/zhaoxiang/dataset/hist_DIY_pseudo/train_aug'
+    dst_root_gt = '/home/zhaoxiang/dataset/hist_DIY_pseudo/train_label'
+    dst_root_raw = '/home/zhaoxiang/dataset/hist_DIY_pseudo/train_raw'
+    img_names = os.listdir(root)
     img_names.sort()
     
     
-    for j in range(20):
+    for i in range(5):
         for img_name in img_names:
-        # for j in range(20):
-            # img_name = 'img0001_116_segmentation_flip_DIY_hist.png'
             
-            img_path = os.path.join(root, 'raw', img_name)
+            img_path = os.path.join(root, img_name)
             img = Image.open(img_path)
             img = ImageOps.grayscale(img)
             img = img.resize([256, 256])
@@ -354,27 +300,19 @@ if __name__ == '__main__':
             # big light anomalies
             colorJitter_img, colorJitter_gt = colorJitterRandom(img_numpy, colorRange=100, threshold=200)
             while(colorJitter_gt.sum() == 0):
-                # small anomalies
-                colorJitter_img, colorJitter_gt_2 = colorJitterRandom(img_numpy, minscale=80, colorRange=100, threshold=230)
-                colorJitter_gt = np.where((colorJitter_gt + colorJitter_gt_2) > 0, 1, 0)
+                colorJitter_img, colorJitter_gt = colorJitterRandom(img_numpy, colorRange=100, threshold=200)
                 
-            img_save_path = os.path.join(root, 'aug', 'aug.png')
-            gt_save_path = os.path.join(root, 'mask', 'mask.png')
-            raw_save_path = os.path.join(root, 'raw', 'raw.png')
+                # # small anomalies
+                # colorJitter_img, colorJitter_gt_2 = colorJitterRandom(img_numpy, minscale=80, colorRange=100, threshold=230)
+                # colorJitter_gt = np.where((colorJitter_gt + colorJitter_gt_2) > 0, 1, 0)
+                
+            img_save_path = os.path.join(dst_root, img_name.replace('.png', '_{}.png'.format(i)))
+            gt_save_path = os.path.join(dst_root_gt, img_name.replace('.png', '_{}.png'.format(i)))
+            raw_save_path = os.path.join(dst_root_raw, img_name.replace('.png', '_{}.png'.format(i)))
             
             cv2.imwrite(img_save_path, colorJitter_img)
-            cv2.imwrite(raw_save_path, img_numpy)
-            
+            cv2.imwrite(raw_save_path, img_numpy)   
             cv2.imwrite(gt_save_path, colorJitter_gt*255)
-            
-            i = False
-            if i:
-                img_save_path = os.path.join(root, 'representative_cases', img_name.replace('.png', '_{}.png'.format(i)))
-                gt_save_path = os.path.join(root, 'representative_cases', 'gt_' + img_name.replace('.png', '_{}.png'.format(i)))
-                
-                cv2.imwrite(img_save_path, colorJitter_img)
-                cv2.imwrite(gt_save_path, colorJitter_gt*255)
-            
         
         
         
