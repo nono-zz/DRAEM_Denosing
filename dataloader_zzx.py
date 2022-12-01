@@ -217,6 +217,11 @@ class MVTecDataset(torch.utils.data.Dataset):
             
             colorJitter_img, colorJitter_gt = colorJitterRandom(img_numpy, colorRange=self.args.colorRange, threshold=self.args.threshold)
             
+            if self.args.rejection: # too generate the anomaly on each image
+                while colorJitter_gt.sum() == 0:
+                    colorJitter_img, colorJitter_gt = colorJitterRandom(img_numpy, colorRange=self.args.colorRange, threshold=self.args.threshold)
+                
+            
             # distortion_img = distortion(np.array(img))
             # cv2.imwrite('distortion.png', distortion_img)
             
@@ -416,6 +421,7 @@ class MVTecDataset_fixed(torch.utils.data.Dataset):
         self.phase = phase
         self.transform = transform
         self.args = args
+        self.rgb = rgb
         
 
         self.gt_transform = gt_transform
@@ -439,8 +445,8 @@ class MVTecDataset_fixed(torch.utils.data.Dataset):
             self.img_paths, self.gt_paths = self.load_dataset()  # self.labels => good : 0, anomaly : 1
             
         elif phase == 'eval':
-            self.img_path = os.path.join(root, 'evaluation')
-            self.gt_path = os.path.join(root, 'evaluation_label')
+            self.img_path = os.path.join(root, 'image')
+            self.gt_path = os.path.join(root, 'image_labels')
             self.img_paths, self.gt_paths = self.load_dataset()  # self.labels => good : 0, anomaly : 1
 
     def load_dataset(self):         # only used in test phase
@@ -463,7 +469,11 @@ class MVTecDataset_fixed(torch.utils.data.Dataset):
         return img_tot_paths, gt_tot_paths
 
     def __len__(self):
-        return len(self.raw_paths)
+        
+        if self.phase == 'train':
+            return len(self.raw_paths)
+        else:
+            return len(self.img_paths)
 
     def __getitem__(self, idx):
         

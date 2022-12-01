@@ -14,7 +14,7 @@ import numpy as np
 import torch.nn.functional as F
 import random
 
-from dataloader_zzx import MVTecDataset, MVTecDataset_cross_validation
+from dataloader_zzx import MVTecDataset, MVTecDataset_cross_validation, MVTecDataset_fixed
 from evaluation_mood import evaluation, evaluation_DRAEM, evaluation_DRAEM_with_device, evaluation_DRAEM_post_processing, evaluation_DRAEM_half
 from cutpaste import CutPaste3Way, CutPasteUnion
 
@@ -131,8 +131,11 @@ def train_on_device(args, fold_index):
             os.makedirs(experiment_path, exist_ok=True)
         # ckp_path = os.path.join(experiment_path, 'last.pth')
         # ckp_path = os.path.join(experiment_path, 'best.pth')
-        ckp_path = os.path.join(experiment_path, 'best_0.859_0.43_Dice_370_epoch.pth')
-        # ckp_path = os.path.join(experiment_path, 'best_0.831_unshuffle.pth')
+        # ckp_path = os.path.join(experiment_path, 'best_0.859_0.43_Dice_370_epoch.pth')
+        # ckp_path = os.path.join(experiment_path, 'best_0.823.pth')
+        # ckp_path = os.path.join(experiment_path, 'last.pth')
+        ckp_path = os.path.join(experiment_path, 'bestSP_0.822_DICE_0.7013063430786133.pth')
+        
         
         
         # model_denoise = torch.nn.DataParallel(model_denoise, device_ids=[0, 1])
@@ -147,15 +150,15 @@ def train_on_device(args, fold_index):
         model_denoise.load_state_dict(torch.load(ckp_path)['model_denoise'])
         model_segment.load_state_dict(torch.load(ckp_path)['model'])
         last_epoch = torch.load(ckp_path)['epoch']
+        # 
+    # train_data = MVTecDataset_cross_validation(root=main_path, transform = test_transform, gt_transform=gt_transform, phase='train', data_source=args.experiment_name, args = args, fold_index=fold_index)
+    # val_data = MVTecDataset_cross_validation(root=main_path, transform = test_transform, gt_transform=gt_transform, phase='test', data_source=args.experiment_name, args = args, fold_index=fold_index)
+    # test_data = MVTecDataset_cross_validation(root=main_path, transform = test_transform, gt_transform=gt_transform, phase='test', data_source=args.experiment_name, args = args, fold_index=fold_index)
+    test_data = MVTecDataset_fixed(root='/home/zhaoxiang/dataset/LiTs_with_labels', transform = test_transform, gt_transform=gt_transform, phase='eval', data_source=args.experiment_name, args = args)
         
-    train_data = MVTecDataset_cross_validation(root=main_path, transform = test_transform, gt_transform=gt_transform, phase='train', data_source=args.experiment_name, args = args, fold_index=fold_index)
-    val_data = MVTecDataset_cross_validation(root=main_path, transform = test_transform, gt_transform=gt_transform, phase='test', data_source=args.experiment_name, args = args, fold_index=fold_index)
-    test_data = MVTecDataset_cross_validation(root=main_path, transform = test_transform, gt_transform=gt_transform, phase='test', data_source=args.experiment_name, args = args, fold_index=fold_index)
-    # test_data = MVTecDataset(root='/home/zhaoxiang/dataset/LiTs_with_labels', transform = test_transform, gt_transform=gt_transform, phase='test', dirs = dirs, data_source=args.experiment_name, args = args)
-        
-    train_dataloader = torch.utils.data.DataLoader(train_data, batch_size = args.bs, shuffle=True)
+    # train_dataloader = torch.utils.data.DataLoader(train_data, batch_size = args.bs, shuffle=True)
     # val_dataloader = torch.utils.data.DataLoader(val_data, batch_size = args.bs, shuffle = False)
-    val_dataloader = torch.utils.data.DataLoader(val_data, batch_size = 1, shuffle = False)
+    # val_dataloader = torch.utils.data.DataLoader(val_data, batch_size = 1, shuffle = False)
     test_dataloader = torch.utils.data.DataLoader(test_data, batch_size = 1, shuffle = False)
         
     loss_l1 = torch.nn.L1Loss()
@@ -324,10 +327,10 @@ if __name__=="__main__":
     parser.add_argument('--bs', default = 8, action='store', type=int)
     # parser.add_argument('--gpu_id', default=['0','1'], action='store', type=str, required=False)
     parser.add_argument('--gpu_id', default='1', action='store', type=str, required=False)
-    parser.add_argument('--experiment_name', default='DRAEM_Denoising_partial_test', choices=['DRAEM_Denoising_reconstruction, liver, brain, head'], action='store')
+    parser.add_argument('--experiment_name', default='DRAEM_Denoising_reject', choices=['DRAEM_Denoising_reconstruction, liver, brain, head'], action='store')
     parser.add_argument('--colorRange', default=100, action='store')
     parser.add_argument('--threshold', default=200, action='store')
-    parser.add_argument('--dataset_name', default='LiTs_with_labels', choices=['hist_DIY', 'Brain_MRI', 'CovidX', 'RESC_average'], action='store')
+    parser.add_argument('--dataset_name', default='hist_DIY', choices=['hist_DIY', 'Brain_MRI', 'CovidX', 'RESC_average'], action='store')
     parser.add_argument('--model', default='DRAEM', choices=['ws_skip_connection', 'DRAEM_reconstruction', 'DRAEM_discriminitive'], action='store')
     parser.add_argument('--process_method', default='Gaussian_noise', choices=['none', 'Guassian_noise', 'DRAEM', 'Simplex_noise'], action='store')
     parser.add_argument('--multi_layer', default=False, action='store')

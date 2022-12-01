@@ -15,7 +15,7 @@ import torch.nn.functional as F
 import random
 
 from dataloader_zzx import MVTecDataset, MVTecDataset_cross_validation, MVTecDataset_fixed
-from evaluation_mood import evaluation, evaluation_DRAEM, evaluation_DRAEM_with_device
+from evaluation_mood import evaluation, evaluation_DRAEM, evaluation_DRAEM_with_device, evaluation_DRAEM_half
 from cutpaste import CutPaste3Way, CutPasteUnion
 
 from model import ReconstructiveSubNetwork, DiscriminativeSubNetwork
@@ -107,7 +107,8 @@ def train_on_device(args, fold_index):
         
     train_data = MVTecDataset_fixed(root=main_path, transform = test_transform, gt_transform=gt_transform, phase='train', data_source=args.experiment_name, args = args)
     val_data = MVTecDataset_fixed(root=main_path, transform = test_transform, gt_transform=gt_transform, phase='test', data_source=args.experiment_name, args = args)
-    test_data = MVTecDataset_fixed(root=main_path, transform = test_transform, gt_transform=gt_transform, phase='test', data_source=args.experiment_name, args = args)
+    # test_data = MVTecDataset_fixed(root=main_path, transform = test_transform, gt_transform=gt_transform, phase='test', data_source=args.experiment_name, args = args)
+    test_data = MVTecDataset_fixed(root='/home/zhaoxiang/dataset/LiTs_with_labels', transform = test_transform, gt_transform=gt_transform, phase='eval', data_source=args.experiment_name, args = args)
         
     train_dataloader = torch.utils.data.DataLoader(train_data, batch_size = args.bs, shuffle=True)
     val_dataloader = torch.utils.data.DataLoader(val_data, batch_size = 1, shuffle = False)
@@ -125,13 +126,15 @@ def train_on_device(args, fold_index):
     
     
     best_SP = 0
+    best_dice = 0
     
     for epoch in range(last_epoch, args.epochs):
         model_segment.train()
         model_denoise.train()        
         # model_segment.eval()
         # model_denoise.eval()
-        
+        # auroc_sp, binary_dice_value, dice_value = evaluation_DRAEM_with_device(args, model_denoise, model_segment, test_dataloader, epoch, loss_l1, run_name, device)
+# 
         loss_list = []
         
         for img, aug, anomaly_mask in tqdm(train_dataloader):
@@ -214,24 +217,36 @@ def train_on_device(args, fold_index):
             model_segment.eval()
             model_denoise.eval()
         
-            auroc_sp, binary_dice_value, dice_value = evaluation_DRAEM_with_device(args, model_denoise, model_segment, test_dataloader, epoch, loss_l1, run_name, device)
+            auroc_sp, dice_value = evaluation_DRAEM_half(args, model_denoise, model_segment, test_dataloader, epoch, loss_l1, run_name, device)
+            # auroc_sp = 0.5
+            # dice_value = 0.5
             result_path = os.path.join('/home/zhaoxiang/output', run_name, 'results.txt')
-            print('Sample Auroc{:.3f}'.format(auroc_sp))
+            print('Sample Auroc{:.3f}, Dice{:.3f}'.format(auroc_sp, dice_value))
             
             with open(result_path, 'a') as f:
-                f.writelines('Fold: {}, Epoch: {}, Sample Auroc: {:.3f} Dice: {:.3f} Dice_binary: {:.3f}  \n'.format(fold_index, epoch, auroc_sp, dice_value, binary_dice_value)) 
+                f.writelines('Epoch:{}, Sample Auroc{:.3f}, Dice{:.3f} \n'.format(epoch, auroc_sp, dice_value)) 
             
-                
+            
+            # torch.save(model_segment.state_dict(), ckp_path.replace('last', 'segment'))
+            torch.save({'model_denoise': model_denoise.state_dict(),
+                        'model': model_segment.state_dict(),
+                        'epoch': epoch}, ckp_path)
+            
+            if auroc_sp > best_SP:
+                best_SP = auroc_sp
                 torch.save({'model_denoise': model_denoise.state_dict(),
-                            'model': model_segment.state_dict(),
-                            'epoch': epoch}, ckp_path)
-                
-                if auroc_sp > best_SP:
-                    best_SP = auroc_sp
-                    torch.save({'model_denoise': model_denoise.state_dict(),
-                            'model': model_segment.state_dict(),
-                            'epoch': epoch,
-                            'best_SP': best_SP}, ckp_path.replace('last', 'best_{}'.format(best_SP)))
+                        'model': model_segment.state_dict(),
+                        'epoch': epoch,
+                        'SP': best_SP,
+                        'dice': dice_value}, ckp_path.replace('last', 'bestSP_{}_DICE_{}'.format(best_SP, dice_value)))
+            
+            if dice_value > best_dice:
+                best_dice = dice_value
+                torch.save({'model_denoise': model_denoise.state_dict(),
+                        'model': model_segment.state_dict(),
+                        'epoch': epoch,
+                        'SP': best_SP,
+                        'dice': dice_value}, ckp_path.replace('last', 'SP_{}_bestDICE_{}'.format(auroc_sp,best_dice)))
             
         
         
@@ -259,7 +274,7 @@ if __name__=="__main__":
     parser.add_argument('--bs', default = 8, action='store', type=int)
     # parser.add_argument('--gpu_id', default=['0','1'], action='store', type=str, required=False)
     parser.add_argument('--gpu_id', default='1', action='store', type=str, required=False)
-    parser.add_argument('--experiment_name', default='DRAEM_Denoising_fixed', choices=['DRAEM_Denoising_reconstruction, liver, brain, head'], action='store')
+    parser.add_argument('--experiment_name', default='DRAEM_Denoising_fixed_full_test', choices=['DRAEM_Denoising_reconstruction, liver, brain, head'], action='store')
     parser.add_argument('--colorRange', default=100, action='store')
     parser.add_argument('--threshold', default=200, action='store')
     parser.add_argument('--dataset_name', default='hist_DIY_pseudo', choices=['hist_DIY', 'Brain_MRI', 'CovidX', 'RESC_average'], action='store')
