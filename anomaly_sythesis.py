@@ -171,7 +171,7 @@ def randomShape(img, scaleUpper=255, threshold=200):
     scale = random.randint(0,scaleUpper)
     
     augImg = img * (1-anomalyMask) + addImg * anomalyMask * scale
-    return augImg.astype(np.uint8), anomalyMask.astype(np.uint8)
+    return augImg.astype(np.uint8), anomalyMask.astype(np.uint8), stretch.astype(np.uint8)
     
 """ Colorjitter random shape"""
 
@@ -210,33 +210,68 @@ def colorJitterRandom_PIL(img_path, colorjitterScale=0):
     return new_img.astype(np.uint8), gt_mask.astype(np.uint8)
 
 
-def colorJitterRandom(img, colorRange = 150, minscale = 50, colorjitterScale=0, threshold=200):
+def colorJitterRandom(img, args, colorRange = 150, minscale = 50, colorjitterScale=0, threshold=200, number_iterations=3, control_texture=False):
     colorJitter_fn = transforms.ColorJitter(brightness = colorjitterScale,
                                                       contrast = colorjitterScale,
                                                       saturation = colorjitterScale,
                                                       hue = colorjitterScale)
-    new_img, gt_mask = randomShape(img, threshold=threshold)
-    # img = cv2.imread(img_path, cv2.IMREAD_GRAYSCALE)
     img = cv2.resize(img, [256, 256])
+    tot_gt_mask = np.zeros_like(img)
+    for i in range(number_iterations):
+        new_img, gt_mask, randomMap = randomShape(img, threshold=threshold)
+        
+        
+        if args.rejection:
+            while gt_mask.sum() == 0:
+                new_img, gt_mask, randomMap = randomShape(img, threshold=threshold)
+        
+        tot_gt_mask = tot_gt_mask + gt_mask
+        
+    tot_gt_mask = np.where(tot_gt_mask > 0, 1, 0)
+    
+    # img = cv2.imread(img_path, cv2.IMREAD_GRAYSCALE)
 
     while abs(colorjitterScale) < minscale:        # from 50 to 5
         colorjitterScale = random.uniform(-colorRange,colorRange)
+    
+    
+    # control the texture
+    if not control_texture:
+        color_mask = np.ones_like(img) * colorjitterScale
+        img_jitter = img + color_mask
+        img_jitter = img_jitter.clip(0, 255)
+        new_img = img * (1-tot_gt_mask) + img_jitter * tot_gt_mask
+    else:
+        texture_index = random.randint(1,2)
+        if texture_index == 1:
+            color_mask = np.ones_like(img) * colorjitterScale
+            img_jitter = img + color_mask
+            img_jitter = img_jitter.clip(0, 255)
+            new_img = img * (1-tot_gt_mask) + img_jitter * tot_gt_mask
+            # cv2.imwrite('new_image_1.png', new_img)
+            
+            
+        elif texture_index == 2:
+            liver_average = img[np.nonzero(img)].mean()
+            # randomMap = randomMap - randomMap.mean()
+            # if randomMap.max() > 
+            # randomMap = randomMap.max() * colorjitterScale
+            # color_mask = randomMap * colorjitterScale
+            # img_jitter = img + randomMap
+            # img_jitter = randomMap/randomMap.max() * colorRange
+            img_jitter = randomMap/randomMap.max() * liver_average
+            # img_jitter = randomMap
+            img_jitter = img_jitter.clip(0, 255)
+            new_img = img * (1-tot_gt_mask) + img_jitter * tot_gt_mask
+            # cv2.imwrite('new_image_2.png', new_img)
+
+    
+    # cv2.imwrite('new_image.png', new_img)
+    # cv2.imwrite('tot_gt.png', tot_gt_mask*255)
         
-    color_mask = np.ones_like(img) * colorjitterScale
-    img_jitter = img + color_mask
-    img_jitter = img_jitter.clip(0, 255)
-    
-    # img_jitter = img_jitter.save('color_jitter.png')
-    # img = img.save('color_jitter_none.png')
-    cv2.imwrite('color_jitter.png', img_jitter)
-    cv2.imwrite('color_jitter_none.png', img)
-    
-    # combine the jitter_img with the raw img
-    # new_img = Image.composite(ImageOps.invert(gt_mask), img)  + Image.composite(gt_mask, img_jitter)
-    # new_img = Image.composite(img, img_jitter, gt_mask)
-    new_img = img * (1-gt_mask) + img_jitter * gt_mask
+
     # return new_img.reshape([img.shape[0], img.shape[1]]), gt_mask.reshape([img.shape[0], img.shape[1]])
-    return new_img.astype(np.uint8), gt_mask.astype(np.uint8)
+    return new_img.astype(np.uint8), tot_gt_mask.astype(np.uint8)
 
 
 def colorJitterRandom_Mask(img, colorRange = 150, colorjitterScale=0):

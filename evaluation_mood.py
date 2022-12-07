@@ -985,8 +985,9 @@ def evaluation_reconstruction_AP(args, model, test_dataloader, epoch, loss_funct
         df = pd.DataFrame({'img_path': img_paths, 'pred': preds, 'gt': gts, 'intersection': intersections, 'dice': dices, 'a_map_max': a_map_max})
         df.to_csv(csv_path, index=False)
         
+        
     # return dice_value, auroc_px, auroc_sp, Average_precesion
-    return dice_value, auroc_sp
+    return dice_value, auroc_sp, a
 
 
 def evaluation_stats(args, model, test_dataloader, epoch, loss_function, run_name, threshold = 0.1):

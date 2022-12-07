@@ -129,12 +129,13 @@ def train_on_device(args, fold_index):
         experiment_path = os.path.join(output_path, run_name)
         if not os.path.exists(experiment_path):
             os.makedirs(experiment_path, exist_ok=True)
-        # ckp_path = os.path.join(experiment_path, 'last.pth')
+        ckp_path = os.path.join(experiment_path, 'last.pth')
         # ckp_path = os.path.join(experiment_path, 'best.pth')
         # ckp_path = os.path.join(experiment_path, 'best_0.859_0.43_Dice_370_epoch.pth')
         # ckp_path = os.path.join(experiment_path, 'best_0.823.pth')
         # ckp_path = os.path.join(experiment_path, 'last.pth')
-        ckp_path = os.path.join(experiment_path, 'bestSP_0.822_DICE_0.7013063430786133.pth')
+        # ckp_path = os.path.join(experiment_path, 'bestSP_0.822_DICE_0.7013063430786133.pth')
+        # ckp_path = os.path.join(experiment_path, 'SP_0.803_bestDICE_0.7231167554855347.pth')
         
         
         
@@ -327,7 +328,7 @@ if __name__=="__main__":
     parser.add_argument('--bs', default = 8, action='store', type=int)
     # parser.add_argument('--gpu_id', default=['0','1'], action='store', type=str, required=False)
     parser.add_argument('--gpu_id', default='1', action='store', type=str, required=False)
-    parser.add_argument('--experiment_name', default='DRAEM_Denoising_reject', choices=['DRAEM_Denoising_reconstruction, liver, brain, head'], action='store')
+    parser.add_argument('--experiment_name', default='DRAEM_Denoising_reject_debug', choices=['DRAEM_Denoising_reconstruction, liver, brain, head'], action='store')
     parser.add_argument('--colorRange', default=100, action='store')
     parser.add_argument('--threshold', default=200, action='store')
     parser.add_argument('--dataset_name', default='hist_DIY', choices=['hist_DIY', 'Brain_MRI', 'CovidX', 'RESC_average'], action='store')

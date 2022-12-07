@@ -209,17 +209,17 @@ class MVTecDataset(torch.utils.data.Dataset):
             blackStrip_img, blackStrip_gt = blackStrip(img_numpy)
             # cv2.imwrite('blackStrip.png', blackStrip_img)
             
-            randomShape_img, randomShape_gt = randomShape(img_numpy)
+            randomShape_img, randomShape_gt, random_map = randomShape(img_numpy)
             # cv2.imwrite('randomShape.png', randomShape_img)
             
-            randomShapeLow_img, randomShapeLow_gt = randomShape(img_numpy, scaleUpper=10)
+            randomShapeLow_img, randomShapeLow_gt, randomLow_map = randomShape(img_numpy, scaleUpper=10)
             # cv2.imwrite('randomShape.png', randomShapeLow_img)
             
-            colorJitter_img, colorJitter_gt = colorJitterRandom(img_numpy, colorRange=self.args.colorRange, threshold=self.args.threshold)
+            colorJitter_img, colorJitter_gt = colorJitterRandom(img_numpy, self.args, colorRange=self.args.colorRange, threshold=self.args.threshold, number_iterations=self.args.number_iterations)
             
             if self.args.rejection: # too generate the anomaly on each image
                 while colorJitter_gt.sum() == 0:
-                    colorJitter_img, colorJitter_gt = colorJitterRandom(img_numpy, colorRange=self.args.colorRange, threshold=self.args.threshold)
+                    colorJitter_img, colorJitter_gt = colorJitterRandom(img_numpy, self.args, colorRange=self.args.colorRange, threshold=self.args.threshold)
                 
             
             # distortion_img = distortion(np.array(img))

@@ -173,9 +173,9 @@ def train_on_device(args):
         
     loss_l1 = torch.nn.L1Loss()
     # optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
-    # optimizer = torch.optim.Adam(list(model_segment.parameters()) + list(model_denoise.parameters()), lr = args.lr)
-    optimizer = torch.optim.SGD(list(model_segment.parameters()) + list(model_denoise.parameters()), lr = args.lr)
-    
+    optimizer = torch.optim.Adam(list(model_segment.parameters()) + list(model_denoise.parameters()), lr = args.lr)
+    # optimizer = torch.optim.SGD(list(model_segment.parameters()) + list(model_denoise.parameters()), lr = args.lr)
+    scheduler = torch.optim.lr_scheduler.StepLR(optimizer=optimizer, step_size=30, gamma=0.1)
     
     loss_l2 = torch.nn.modules.loss.MSELoss()
     loss_ssim = SSIM(device=device)
@@ -230,8 +230,9 @@ def train_on_device(args):
             
         print('epoch [{}/{}], loss:{:.4f} \n'.format(args.epochs, epoch, mean(loss_list)))
         with open(result_path, 'a') as f:
-            f.writelines('epoch [{}/{}], loss:{:.4f} \n'.format(args.epochs, epoch, mean(loss_list)))
-    
+                f.writelines('epoch [{}/{}], loss:{:.4f} \n'.format(args.epochs, epoch, mean(loss_list)))
+
+        
         if (epoch) % 10 == 0:
             model_segment.eval()
             model_denoise.eval()
@@ -246,10 +247,7 @@ def train_on_device(args):
             # auroc_sp = evaluation_DRAEM(args, model_denoise, model_segment, test_dataloader, epoch, loss_l1, run_name)
             # auroc_sp = evaluation_DRAEM_with_device(args, model_denoise, model_segment, test_dataloader, epoch, loss_l1, run_name, device)
             auroc_sp, dice_value = evaluation_DRAEM_half(args, model_denoise, model_segment, test_dataloader, epoch, loss_l1, run_name, device)
-            # auroc_sp = 0.5
-            # dice_value = 0.5
-            result_path = os.path.join('/home/zhaoxiang/output', run_name, 'results.txt')
-            print('Sample Auroc{:.3f}, Dice{:.3f}'.format(auroc_sp, dice_value))
+            # auroc_sp = 0.5ee_value))
             
             with open(result_path, 'a') as f:
                 f.writelines('Epoch:{}, Sample Auroc{:.3f}, Dice{:.3f} \n'.format(epoch, auroc_sp, dice_value)) 
@@ -287,7 +285,8 @@ if __name__=="__main__":
 
     parser = argparse.ArgumentParser()
     parser.add_argument('--obj_id', default=1,  action='store', type=int)
-    parser.add_argument('--lr', default=0.0001, action='store', type=float)
+    # parser.add_argument('--lr', default=0.0001, action='store', type=float)
+    parser.add_argument('--lr', default=0.01, action='store', type=float)
     parser.add_argument('--epochs', default=900, action='store', type=int)
     parser.add_argument('--checkpoint_path', default='./checkpoints/', action='store', type=str)
     parser.add_argument('--log_path', default='./logs/', action='store', type=str)
@@ -303,8 +302,8 @@ if __name__=="__main__":
     # need to be changed/checked every time
     parser.add_argument('--bs', default = 8, action='store', type=int)
     # parser.add_argument('--gpu_id', default=['0','1'], action='store', type=str, required=False)
-    parser.add_argument('--gpu_id', default='1', action='store', type=str, required=False)
-    parser.add_argument('--experiment_name', default='DRAEM_Denoising_reject_SGD', choices=['DRAEM_Denoising_reconstruction, liver, brain, head'], action='store')
+    parser.add_argument('--gpu_id', default='0', action='store', type=str, required=False)
+    parser.add_argument('--experiment_name', default='DRAEM_Denoising_reject_Adam_decay', choices=['DRAEM_Denoising_reconstruction, liver, brain, head'], action='store')
     parser.add_argument('--colorRange', default=100, action='store')
     parser.add_argument('--threshold', default=200, action='store')
     parser.add_argument('--dataset_name', default='hist_DIY', choices=['hist_DIY', 'Brain_MRI', 'CovidX', 'RESC_average'], action='store')
