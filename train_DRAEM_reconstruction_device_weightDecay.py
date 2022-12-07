@@ -58,6 +58,10 @@ def get_data_transforms(size, isize):
 
     return data_transforms, gt_transforms
 
+def get_lr(optimizer):
+    for param_group in optimizer.param_groups:
+        return param_group['lr']
+
         
         
 def add_Gaussian_noise(x, noise_res, noise_std, img_size):
@@ -225,9 +229,14 @@ def train_on_device(args):
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
-        
+
             loss_list.append(loss.item())
             
+
+        scheduler.step()
+        current_learning_rate = get_lr(optimizer)
+        print("current learning rate is:   ", current_learning_rate)
+        
         print('epoch [{}/{}], loss:{:.4f} \n'.format(args.epochs, epoch, mean(loss_list)))
         with open(result_path, 'a') as f:
                 f.writelines('epoch [{}/{}], loss:{:.4f} \n'.format(args.epochs, epoch, mean(loss_list)))
