@@ -14,7 +14,7 @@ import numpy as np
 import torch.nn.functional as F
 import random
 
-from dataloader_zzx import MVTecDataset, Medical_dataset, MVTecDataset_cross_validation
+from dataloader_zzx import MVTecDataset, MVTecDataset_fixed
 from evaluation_mood import evaluation, evaluation_DRAEM, evaluation_DRAEM_with_device, evaluation_DRAEM_half
 from cutpaste import CutPaste3Way, CutPasteUnion
 
@@ -57,10 +57,6 @@ def get_data_transforms(size, isize):
         transforms.ToTensor()])
 
     return data_transforms, gt_transforms
-
-def get_lr(optimizer):
-    for param_group in optimizer.param_groups:
-        return param_group['lr']
 
         
         
@@ -166,13 +162,15 @@ def train_on_device(args):
         last_epoch = torch.load(ckp_path)['epoch']
         
     train_data = MVTecDataset(root=main_path, transform = test_transform, gt_transform=gt_transform, phase='train', dirs = dirs, data_source=args.experiment_name, args = args)
-    val_data = MVTecDataset(root=main_path, transform = test_transform, gt_transform=gt_transform, phase='test', dirs = dirs, data_source=args.experiment_name, args = args)
+    val_data = MVTecDataset_fixed(root='/home/zhaoxiang/dataset/hist_DIY_pseudo', transform = test_transform, gt_transform=gt_transform, phase='train', data_source=args.experiment_name, args = args)
+    
+    # val_data = MVTecDataset(root='', transform = test_transform, gt_transform=gt_transform, phase='test', dirs = dirs, data_source=args.experiment_name, args = args)
     test_data = MVTecDataset(root=main_path, transform = test_transform, gt_transform=gt_transform, phase='test', dirs = dirs, data_source=args.experiment_name, args = args)
     # test_data = MVTecDataset_cross_validation(root='/home/zhaoxiang/dataset/LiTs_with_labels', transform = test_transform, gt_transform=gt_transform, phase='test', data_source=args.experiment_name, args = args)
         
     train_dataloader = torch.utils.data.DataLoader(train_data, batch_size = args.bs, shuffle=True)
     # val_dataloader = torch.utils.data.DataLoader(val_data, batch_size = args.bs, shuffle = False)
-    val_dataloader = torch.utils.data.DataLoader(val_data, batch_size = 1, shuffle = False)
+    val_dataloader = torch.utils.data.DataLoader(val_data, batch_size = args.bs, shuffle = False)
     test_dataloader = torch.utils.data.DataLoader(test_data, batch_size = 1, shuffle = False)
         
     loss_l1 = torch.nn.L1Loss()
@@ -181,16 +179,18 @@ def train_on_device(args):
     # optimizer = torch.optim.SGD(list(model_segment.parameters()) + list(model_denoise.parameters()), lr = args.lr)
     scheduler = torch.optim.lr_scheduler.StepLR(optimizer=optimizer, step_size=30, gamma=0.1)
     
+    
     loss_l2 = torch.nn.modules.loss.MSELoss()
     loss_ssim = SSIM(device=device)
     loss_focal = FocalLoss()
-    loss_dice = DiceLoss()
-    loss_diceBCE = DiceBCELoss()
-    
     
     best_SP = 0
     best_dice = 0
     
+    best_error = 1000
+    
+    #%% start to train
+    # train
     for epoch in range(last_epoch, args.epochs):
         model_segment.train()
         model_denoise.train()
@@ -229,19 +229,64 @@ def train_on_device(args):
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
-
+        
             loss_list.append(loss.item())
             
-
-        scheduler.step()
-        current_learning_rate = get_lr(optimizer)
-        print("current learning rate is:   ", current_learning_rate)
-        
-        print('epoch [{}/{}], loss:{:.6f} \n'.format(args.epochs, epoch, mean(loss_list)))
+        print('epoch [{}/{}], loss:{:.4f} \n'.format(args.epochs, epoch, mean(loss_list)))
         with open(result_path, 'a') as f:
-                f.writelines('epoch [{}/{}], loss:{:.4f}, learning_rate:{:.6f}, \n'.format(args.epochs, epoch, mean(loss_list), current_learning_rate))
+            f.writelines('epoch [{}/{}], loss:{:.4f} \n'.format(args.epochs, epoch, mean(loss_list)))
+            
 
-        
+            #%% validation on pseudo dataset per epoch
+            model_segment.eval()
+            model_denoise.eval()
+            error_list = []
+            
+            for img, aug, anomaly_mask in tqdm(val_dataloader):
+                img = torch.reshape(img, (-1, 1, args.img_size, args.img_size))
+                aug = torch.reshape(aug, (-1, 1, args.img_size, args.img_size))
+                anomaly_mask = torch.reshape(anomaly_mask, (-1, 1, args.img_size, args.img_size))
+                
+                img = img.to(device)
+                aug = aug.to(device)
+                anomaly_mask = anomaly_mask.to(device)
+
+                rec = model_denoise(aug)
+                joined_in = torch.cat((rec, aug), dim=1)
+                
+                out_mask = model_segment(joined_in)
+                out_mask_sm = torch.softmax(out_mask, dim=1)
+
+                l2_loss = loss_l2(rec,img)
+                ssim_loss = loss_ssim(rec, img)
+                
+                if anomaly_mask.max() != 0:
+                    segment_loss = loss_focal(out_mask_sm, anomaly_mask)
+                    loss = segment_loss + l2_loss + ssim_loss
+                else:
+                    loss = l2_loss + ssim_loss
+                
+                save_image(aug, 'eval_aug.png')
+                save_image(rec, 'eval_rec_output.png')
+                save_image(img, 'eval_rec_target.png')
+                save_image(anomaly_mask, 'eval_mask_target.png')
+                save_image(out_mask_sm[:,1:,:,:], 'eval_mask_output.png')
+            
+                error_list.append(loss.item())
+                
+            print('eval: epoch [{}/{}], loss:{:.4f} \n'.format(args.epochs, epoch, mean(error_list)))
+            with open(result_path, 'a') as f:
+                f.writelines('eval: epoch [{}/{}], loss:{:.4f} \n'.format(args.epochs, epoch, mean(error_list)))
+            
+            if mean(error_list) < best_error:
+                best_error = mean(error_list)  
+                best_epoch = epoch
+                torch.save({'model_denoise': model_denoise.state_dict(),
+                        'model': model_segment.state_dict(),
+                        'epoch': epoch}, ckp_path.replace('last', 'eval_best'))
+                
+                    
+        #%% test every 10 epochs
         if (epoch) % 10 == 0:
             model_segment.eval()
             model_denoise.eval()
@@ -256,7 +301,10 @@ def train_on_device(args):
             # auroc_sp = evaluation_DRAEM(args, model_denoise, model_segment, test_dataloader, epoch, loss_l1, run_name)
             # auroc_sp = evaluation_DRAEM_with_device(args, model_denoise, model_segment, test_dataloader, epoch, loss_l1, run_name, device)
             auroc_sp, dice_value = evaluation_DRAEM_half(args, model_denoise, model_segment, test_dataloader, epoch, loss_l1, run_name, device)
-            # auroc_sp = 0.5ee_value))
+            # auroc_sp = 0.5
+            # dice_value = 0.5
+            result_path = os.path.join('/home/zhaoxiang/output', run_name, 'results.txt')
+            print('Sample Auroc{:.3f}, Dice{:.3f}'.format(auroc_sp, dice_value))
             
             with open(result_path, 'a') as f:
                 f.writelines('Epoch:{}, Sample Auroc{:.3f}, Dice{:.3f} \n'.format(epoch, auroc_sp, dice_value)) 
@@ -284,10 +332,6 @@ def train_on_device(args):
                         'dice': dice_value}, ckp_path.replace('last', 'SP_{}_bestDICE_{}'.format(auroc_sp,best_dice)))
                 
 
-                
-        
-        
-
 if __name__=="__main__":
     
     import argparse
@@ -295,7 +339,6 @@ if __name__=="__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--obj_id', default=1,  action='store', type=int)
     parser.add_argument('--lr', default=0.0001, action='store', type=float)
-    # parser.add_argument('--lr', default=0.001, action='store', type=float)
     parser.add_argument('--epochs', default=900, action='store', type=int)
     parser.add_argument('--checkpoint_path', default='./checkpoints/', action='store', type=str)
     parser.add_argument('--log_path', default='./logs/', action='store', type=str)
@@ -311,8 +354,8 @@ if __name__=="__main__":
     # need to be changed/checked every time
     parser.add_argument('--bs', default = 8, action='store', type=int)
     # parser.add_argument('--gpu_id', default=['0','1'], action='store', type=str, required=False)
-    parser.add_argument('--gpu_id', default='0', action='store', type=str, required=False)
-    parser.add_argument('--experiment_name', default='DRAEM_Denoising_reject_Adam_decay', choices=['DRAEM_Denoising_reconstruction, liver, brain, head'], action='store')
+    parser.add_argument('--gpu_id', default='1', action='store', type=str, required=False)
+    parser.add_argument('--experiment_name', default='DRAEM_Denoising_reject_pseudoEval', choices=['DRAEM_Denoising_reconstruction, liver, brain, head'], action='store')
     parser.add_argument('--colorRange', default=100, action='store')
     parser.add_argument('--threshold', default=200, action='store')
     parser.add_argument('--dataset_name', default='hist_DIY', choices=['hist_DIY', 'Brain_MRI', 'CovidX', 'RESC_average'], action='store')
@@ -340,4 +383,3 @@ if __name__=="__main__":
 
     # with torch.cuda.device(args.gpu_id):
     train_on_device(args)
-

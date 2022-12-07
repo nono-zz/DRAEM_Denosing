@@ -210,7 +210,7 @@ def colorJitterRandom_PIL(img_path, colorjitterScale=0):
     return new_img.astype(np.uint8), gt_mask.astype(np.uint8)
 
 
-def colorJitterRandom(img, args, colorRange = 150, minscale = 50, colorjitterScale=0, threshold=200, number_iterations=3, control_texture=False):
+def colorJitterRandom(img, args, colorRange = 100, minscale = 50, colorjitterScale=0, threshold=200, number_iterations=1, control_texture=False):
     colorJitter_fn = transforms.ColorJitter(brightness = colorjitterScale,
                                                       contrast = colorjitterScale,
                                                       saturation = colorjitterScale,
@@ -309,7 +309,11 @@ def colorJitterRandom_Mask(img, colorRange = 150, colorjitterScale=0):
             
             
 if __name__ == '__main__':
-    
+    import argparse
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--rejection', default=True, action='store')
+    args = parser.parse_args()
     
     # root = '/home/zhaoxiang/DRAEM_Denosing/sample_liver_images'
     # img_names = os.listdir(os.path.join(root, 'raw'))
@@ -332,8 +336,9 @@ if __name__ == '__main__':
             """ Sample level augmentation"""
             img_numpy = np.array(img)
             
+        
             # big light anomalies
-            colorJitter_img, colorJitter_gt = colorJitterRandom(img_numpy, colorRange=100, threshold=200)
+            colorJitter_img, colorJitter_gt = colorJitterRandom(img_numpy, args, colorRange=100, threshold=200)
             while(colorJitter_gt.sum() == 0):
                 colorJitter_img, colorJitter_gt = colorJitterRandom(img_numpy, colorRange=100, threshold=200)
                 
