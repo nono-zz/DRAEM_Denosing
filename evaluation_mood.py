@@ -471,6 +471,9 @@ def evaluation_DRAEM_half(args, model_denoise, model_segment, test_dataloader, e
     y_pred_ = torch.zeros(256*256*len(test_dataloader), dtype=torch.half)
     y_sample_true_ = torch.zeros(len(test_dataloader), dtype=torch.half)
     y_sample_pred_ = torch.zeros(len(test_dataloader), dtype=torch.half)
+    
+    y_sample_pred_mean_ = torch.zeros(len(test_dataloader), dtype=torch.half)
+    y_sample_true_mean_ = torch.zeros(len(test_dataloader), dtype=torch.half)
     i = 0
     j = 0
     
@@ -553,7 +556,9 @@ def evaluation_DRAEM_half(args, model_denoise, model_segment, test_dataloader, e
                     cv2.imwrite(p_map_path, prediction_map)
             
             y_sample_true_[j] = (y_.max()).half()
+            y_sample_true_mean_[j] = (y_.max()).half()
             y_sample_pred_[j] = (y_hat.max()).half()
+            y_sample_pred_mean_[j] = (y_hat.sum()).half()
             
             y_true_[i:i + y_.numel()] = y_.half()
             y_pred_[i:i + y_hat.numel()] = y_hat.half()
@@ -571,12 +576,14 @@ def evaluation_DRAEM_half(args, model_denoise, model_segment, test_dataloader, e
             
         dice_value = dice_tensor(y_true_ > 0.5, y_pred_ > 0.5).cpu().item()
         auroc_sp = round(roc_auc_score(y_sample_true_, y_sample_pred_), 3)
+        auroc_sp_mean = round(roc_auc_score(y_sample_true_mean_, y_sample_pred_mean_), 3)
         
         del y_true_
         del y_pred_
         
         
     # return dice_value, auroc_px, auroc_sp
+    # return auroc_sp, auroc_sp_mean, dice_value
     return auroc_sp, dice_value
 
 
