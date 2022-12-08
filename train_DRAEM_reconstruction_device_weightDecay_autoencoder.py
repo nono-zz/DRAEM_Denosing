@@ -278,6 +278,10 @@ def train_on_device(args):
                         'model': model_segment.state_dict(),
                         'epoch': epoch}, ckp_path)
             
+            torch.save({'model_denoise': model_denoise.state_dict(),
+                        'model': model_segment.state_dict(),
+                        'epoch': epoch}, ckp_path.replace('last', '{}'.format(epoch)))
+            
             if auroc_sp > best_SP:
                 best_SP = auroc_sp
                 torch.save({'model_denoise': model_denoise.state_dict(),
