@@ -215,7 +215,7 @@ class MVTecDataset(torch.utils.data.Dataset):
             randomShapeLow_img, randomShapeLow_gt, randomLow_map = randomShape(img_numpy, scaleUpper=10)
             # cv2.imwrite('randomShape.png', randomShapeLow_img)
             
-            colorJitter_img, colorJitter_gt = colorJitterRandom(img_numpy, self.args, colorRange=self.args.colorRange, threshold=self.args.threshold, number_iterations=self.args.number_iterations)
+            colorJitter_img, colorJitter_gt = colorJitterRandom(img_numpy, self.args, colorRange=self.args.colorRange, threshold=self.args.threshold, number_iterations=self.args.number_iterations, cutout = self.args.cutout)
             
             if self.args.rejection: # too generate the anomaly on each image
                 while colorJitter_gt.sum() == 0:

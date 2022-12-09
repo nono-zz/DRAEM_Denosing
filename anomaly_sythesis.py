@@ -210,7 +210,7 @@ def colorJitterRandom_PIL(img_path, colorjitterScale=0):
     return new_img.astype(np.uint8), gt_mask.astype(np.uint8)
 
 
-def colorJitterRandom(img, args, colorRange = 100, minscale = 50, colorjitterScale=0, threshold=200, number_iterations=1, control_texture=False):
+def colorJitterRandom(img, args, colorRange = 100, minscale = 50, colorjitterScale=0, threshold=200, number_iterations=1, control_texture=False, cutout=False):
     colorJitter_fn = transforms.ColorJitter(brightness = colorjitterScale,
                                                       contrast = colorjitterScale,
                                                       saturation = colorjitterScale,
@@ -233,6 +233,9 @@ def colorJitterRandom(img, args, colorRange = 100, minscale = 50, colorjitterSca
 
     while abs(colorjitterScale) < minscale:        # from 50 to 5
         colorjitterScale = random.uniform(-colorRange,colorRange)
+        
+    if cutout:
+        colorjitterScale = -abs(colorjitterScale)
     
     
     # control the texture

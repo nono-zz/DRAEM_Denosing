@@ -251,7 +251,7 @@ def train_on_device(args):
                 f.writelines('epoch [{}/{}], loss:{:.4f}, learning_rate:{:.6f}, \n'.format(args.epochs, epoch, mean(loss_list), current_learning_rate))
 
         
-        if (epoch) % 10 == 0:
+        if (epoch+1) % 10 == 0:
             model_segment.eval()
             model_denoise.eval()
             # dice_value, auroc_px, auroc_sp = evaluation_DRAEM(args, model_denoise, model_segment, test_dataloader, epoch, loss_l1, run_name)
@@ -321,7 +321,7 @@ if __name__=="__main__":
     parser.add_argument('--bs', default = 8, action='store', type=int)
     # parser.add_argument('--gpu_id', default=['0','1'], action='store', type=str, required=False)
     parser.add_argument('--gpu_id', default='0', action='store', type=str, required=False)
-    parser.add_argument('--experiment_name', default='DRAEM_Denoising_reject_weightDecay_experiment3', choices=['DRAEM_Denoising_reconstruction, liver, brain, head'], action='store')
+    parser.add_argument('--experiment_name', default='DRAEM_Denoising_cutout_reject_weightDecay', choices=['DRAEM_Denoising_reconstruction, liver, brain, head'], action='store')
     parser.add_argument('--colorRange', default=100, action='store')
     parser.add_argument('--threshold', default=200, action='store')
     parser.add_argument('--dataset_name', default='hist_DIY', choices=['hist_DIY', 'Brain_MRI', 'CovidX', 'RESC_average'], action='store')
@@ -331,6 +331,7 @@ if __name__=="__main__":
     parser.add_argument('--rejection', default=True, action='store')
     parser.add_argument('--number_iterations', default=1, action='store')
     parser.add_argument('--control_texture', default=False, action='store')
+    parser.add_argument('--cutout', default=True, action='store')
     parser.add_argument('--resume_training', default=False, action='store')
     
     args = parser.parse_args()
