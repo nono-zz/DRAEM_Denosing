@@ -176,7 +176,8 @@ def train_on_device(args):
         
     train_data = MVTecDataset(root=main_path, transform = test_transform, gt_transform=gt_transform, phase='train', dirs = dirs, data_source=args.experiment_name, args = args)
     val_data = MVTecDataset(root=main_path, transform = test_transform, gt_transform=gt_transform, phase='test', dirs = dirs, data_source=args.experiment_name, args = args)
-    test_data = MVTecDataset(root=main_path, transform = test_transform, gt_transform=gt_transform, phase='test', dirs = dirs, data_source=args.experiment_name, args = args)
+    test_data = MVTecDataset_cross_validation(root='/home/zhaoxiang/dataset/LiTs_with_labels', transform = test_transform, gt_transform=gt_transform, phase='test', data_source=args.experiment_name, args = args)
+    # test_data = MVTecDataset(root=main_path, transform = test_transform, gt_transform=gt_transform, phase='test', dirs = dirs, data_source=args.experiment_name, args = args)
     # test_data = MVTecDataset_cross_validation(root='/home/zhaoxiang/dataset/LiTs_with_labels', transform = test_transform, gt_transform=gt_transform, phase='test', data_source=args.experiment_name, args = args)
         
     train_dataloader = torch.utils.data.DataLoader(train_data, batch_size = args.bs, shuffle=True)
@@ -204,6 +205,9 @@ def train_on_device(args):
         model_segment.train()
         model_denoise.train()
         loss_list = []
+        
+        # auroc_sp, dice_value = evaluation_DRAEM_half(args, model_denoise, model_segment, test_dataloader, epoch, loss_l1, run_name, device)
+        
         
         for img, aug, anomaly_mask in tqdm(train_dataloader):
             img = torch.reshape(img, (-1, 1, args.img_size, args.img_size))
@@ -318,10 +322,10 @@ if __name__=="__main__":
     parser.add_argument("-img_size", "--img_size", type=float, default=256, help="noise magnitude.")
     
     # need to be changed/checked every time
-    parser.add_argument('--bs', default = 8, action='store', type=int)
+    parser.add_argument('--bs', default = 1, action='store', type=int)
     # parser.add_argument('--gpu_id', default=['0','1'], action='store', type=str, required=False)
     parser.add_argument('--gpu_id', default='1', action='store', type=str, required=False)
-    parser.add_argument('--experiment_name', default='DRAEM_Denoising_reject_weightDecay_experiment5', choices=['DRAEM_Denoising_reconstruction, liver, brain, head'], action='store')
+    parser.add_argument('--experiment_name', default='DRAEM_Denoising_cutout_reject_weightDecay_test', choices=['DRAEM_Denoising_reconstruction, liver, brain, head'], action='store')
     parser.add_argument('--colorRange', default=100, action='store')
     parser.add_argument('--threshold', default=200, action='store')
     parser.add_argument('--dataset_name', default='hist_DIY', choices=['hist_DIY', 'Brain_MRI', 'CovidX', 'RESC_average'], action='store')
@@ -331,7 +335,7 @@ if __name__=="__main__":
     parser.add_argument('--rejection', default=True, action='store')
     parser.add_argument('--number_iterations', default=1, action='store')
     parser.add_argument('--control_texture', default=False, action='store')
-    parser.add_argument('--cutout', default=False, action='store')
+    parser.add_argument('--cutout', default=True, action='store')
     parser.add_argument('--resume_training', default=False, action='store')
     
     args = parser.parse_args()

@@ -14,7 +14,7 @@ import numpy as np
 import torch.nn.functional as F
 import random
 
-from dataloader_zzx import MVTecDataset, MVTecDataset_fixed
+from dataloader_zzx import MVTecDataset, MVTecDataset_fixed, MVTecDataset_cross_validation
 from evaluation_mood import evaluation, evaluation_DRAEM, evaluation_DRAEM_with_device, evaluation_DRAEM_half
 from cutpaste import CutPaste3Way, CutPasteUnion
 
@@ -165,18 +165,16 @@ def train_on_device(args):
     val_data = MVTecDataset_fixed(root='/home/zhaoxiang/dataset/hist_DIY_pseudo', transform = test_transform, gt_transform=gt_transform, phase='train', data_source=args.experiment_name, args = args)
     
     # val_data = MVTecDataset(root='', transform = test_transform, gt_transform=gt_transform, phase='test', dirs = dirs, data_source=args.experiment_name, args = args)
-    test_data = MVTecDataset(root=main_path, transform = test_transform, gt_transform=gt_transform, phase='test', dirs = dirs, data_source=args.experiment_name, args = args)
+    # test_data = MVTecDataset_cross_validation(root=main_path, transform = test_transform, gt_transform=gt_transform, phase='test', data_source=args.experiment_name, args = args, fold_index=fold_index)
+    test_data = MVTecDataset_cross_validation(root='/home/zhaoxiang/dataset/LiTs_with_labels', transform = test_transform, gt_transform=gt_transform, phase='test', data_source=args.experiment_name, args = args)
     # test_data = MVTecDataset_cross_validation(root='/home/zhaoxiang/dataset/LiTs_with_labels', transform = test_transform, gt_transform=gt_transform, phase='test', data_source=args.experiment_name, args = args)
         
     train_dataloader = torch.utils.data.DataLoader(train_data, batch_size = args.bs, shuffle=True)
-    # val_dataloader = torch.utils.data.DataLoader(val_data, batch_size = args.bs, shuffle = False)
     val_dataloader = torch.utils.data.DataLoader(val_data, batch_size = args.bs, shuffle = False)
     test_dataloader = torch.utils.data.DataLoader(test_data, batch_size = 1, shuffle = False)
         
     loss_l1 = torch.nn.L1Loss()
-    # optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
     optimizer = torch.optim.Adam(list(model_segment.parameters()) + list(model_denoise.parameters()), lr = args.lr)
-    # optimizer = torch.optim.SGD(list(model_segment.parameters()) + list(model_denoise.parameters()), lr = args.lr)
     scheduler = torch.optim.lr_scheduler.StepLR(optimizer=optimizer, step_size=30, gamma=0.1)
     
     
@@ -195,6 +193,9 @@ def train_on_device(args):
         model_segment.train()
         model_denoise.train()
         loss_list = []
+        
+        auroc_sp, dice_value = evaluation_DRAEM_half(args, model_denoise, model_segment, test_dataloader, epoch, loss_l1, run_name, device)
+        
         
         for img, aug, anomaly_mask in tqdm(train_dataloader):
             img = torch.reshape(img, (-1, 1, args.img_size, args.img_size))
@@ -290,27 +291,13 @@ def train_on_device(args):
         if (epoch) % 10 == 0:
             model_segment.eval()
             model_denoise.eval()
-            # dice_value, auroc_px, auroc_sp = evaluation_DRAEM(args, model_denoise, model_segment, test_dataloader, epoch, loss_l1, run_name)
-            # result_path = os.path.join('/home/zhaoxiang/output', run_name, 'results.txt')
-            # print('Pixel Auroc:{:.3f}, Sample Auroc{:.3f}, Dice{:3f}'.format(auroc_px, auroc_sp, dice_value))
-            
-            # with open(result_path, 'a') as f:
-            #     f.writelines('Epoch:{}, Pixel Auroc:{:.3f}, Sample Auroc{:.3f}, Dice:{:3f} \n'.format(epoch, auroc_px, auroc_sp, dice_value))   
-            
-            
-            # auroc_sp = evaluation_DRAEM(args, model_denoise, model_segment, test_dataloader, epoch, loss_l1, run_name)
-            # auroc_sp = evaluation_DRAEM_with_device(args, model_denoise, model_segment, test_dataloader, epoch, loss_l1, run_name, device)
             auroc_sp, dice_value = evaluation_DRAEM_half(args, model_denoise, model_segment, test_dataloader, epoch, loss_l1, run_name, device)
-            # auroc_sp = 0.5
-            # dice_value = 0.5
             result_path = os.path.join('/home/zhaoxiang/output', run_name, 'results.txt')
             print('Sample Auroc{:.3f}, Dice{:.3f}'.format(auroc_sp, dice_value))
             
             with open(result_path, 'a') as f:
                 f.writelines('Epoch:{}, Sample Auroc{:.3f}, Dice{:.3f} \n'.format(epoch, auroc_sp, dice_value)) 
-            
-            
-            # torch.save(model_segment.state_dict(), ckp_path.replace('last', 'segment'))
+
             torch.save({'model_denoise': model_denoise.state_dict(),
                         'model': model_segment.state_dict(),
                         'epoch': epoch}, ckp_path)
@@ -355,7 +342,7 @@ if __name__=="__main__":
     parser.add_argument('--bs', default = 8, action='store', type=int)
     # parser.add_argument('--gpu_id', default=['0','1'], action='store', type=str, required=False)
     parser.add_argument('--gpu_id', default='1', action='store', type=str, required=False)
-    parser.add_argument('--experiment_name', default='DRAEM_Denoising_reject_pseudoEval', choices=['DRAEM_Denoising_reconstruction, liver, brain, head'], action='store')
+    parser.add_argument('--experiment_name', default='DRAEM_Denoising_reject_randomTest', choices=['DRAEM_Denoising_reconstruction, liver, brain, head'], action='store')
     parser.add_argument('--colorRange', default=100, action='store')
     parser.add_argument('--threshold', default=200, action='store')
     parser.add_argument('--dataset_name', default='hist_DIY', choices=['hist_DIY', 'Brain_MRI', 'CovidX', 'RESC_average'], action='store')
@@ -365,6 +352,7 @@ if __name__=="__main__":
     parser.add_argument('--rejection', default=True, action='store')
     parser.add_argument('--number_iterations', default=1, action='store')
     parser.add_argument('--control_texture', default=False, action='store')
+    parser.add_argument('--cutout', default=True, action='store')
     parser.add_argument('--resume_training', default=False, action='store')
     
     args = parser.parse_args()

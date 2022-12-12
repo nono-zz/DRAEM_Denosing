@@ -217,9 +217,9 @@ class MVTecDataset(torch.utils.data.Dataset):
             
             colorJitter_img, colorJitter_gt = colorJitterRandom(img_numpy, self.args, colorRange=self.args.colorRange, threshold=self.args.threshold, number_iterations=self.args.number_iterations, cutout = self.args.cutout)
             
-            if self.args.rejection: # too generate the anomaly on each image
-                while colorJitter_gt.sum() == 0:
-                    colorJitter_img, colorJitter_gt = colorJitterRandom(img_numpy, self.args, colorRange=self.args.colorRange, threshold=self.args.threshold)
+            # if self.args.rejection: # too generate the anomaly on each image
+            #     while colorJitter_gt.sum() == 0:
+            #         colorJitter_img, colorJitter_gt = colorJitterRandom(img_numpy, self.args, colorRange=self.args.colorRange, threshold=self.args.threshold)
                 
             
             # distortion_img = distortion(np.array(img))
@@ -291,7 +291,7 @@ class MVTecDataset(torch.utils.data.Dataset):
         
         
 class MVTecDataset_cross_validation(torch.utils.data.Dataset):
-    def __init__(self, root, transform, gt_transform, phase, data_source = 'liver', rgb=False, args=None, fold_index = 0, test_whole=True):
+    def __init__(self, root, transform, gt_transform, phase, data_source = 'liver', rgb=False, args=None, fold_index = 0, test_whole=False):
         self.phase = phase
         self.transform = transform
         self.args = args

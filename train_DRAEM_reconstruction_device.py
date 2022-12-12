@@ -127,7 +127,7 @@ def train_on_device(args):
         model = DiscriminativeSubNetwork(in_channels=n_input, out_channels=n_input).to(device)
     elif args.model == 'DRAEM':
         # model_denoise = UNet(in_channels=n_input, n_classes=n_classes, norm="group", up_mode="upconv", depth=depth, wf=wf, padding=True).to(device)
-        model_denoise = ReconstructiveSubNetwork(in_channels=n_input, out_channels=n_input).to(device)
+        model_denoise = DiscriminativeSubNetwork(in_channels=n_input, out_channels=n_input).to(device)
         model_segment = DiscriminativeSubNetwork(in_channels=2, out_channels=2).to(device)
         
         model_denoise.to(device)
@@ -174,8 +174,8 @@ def train_on_device(args):
         
     loss_l1 = torch.nn.L1Loss()
     # optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
-    optimizer = torch.optim.Adam(list(model_segment.parameters()) + list(model_denoise.parameters()), lr = args.lr)
-    # optimizer = torch.optim.SGD(list(model_segment.parameters()) + list(model_denoise.parameters()), lr = args.lr)
+    # optimizer = torch.optim.Adam(list(model_segment.parameters()) + list(model_denoise.parameters()), lr = args.lr)
+    optimizer = torch.optim.SGD(list(model_segment.parameters()) + list(model_denoise.parameters()), lr = args.lr)
     
     
     loss_l2 = torch.nn.modules.loss.MSELoss()
@@ -288,8 +288,8 @@ if __name__=="__main__":
 
     parser = argparse.ArgumentParser()
     parser.add_argument('--obj_id', default=1,  action='store', type=int)
-    parser.add_argument('--lr', default=0.0001, action='store', type=float)
-    parser.add_argument('--epochs', default=900, action='store', type=int)
+    parser.add_argument('--lr', default=0.005, action='store', type=float)
+    parser.add_argument('--epochs', default=150, action='store', type=int)
     parser.add_argument('--checkpoint_path', default='./checkpoints/', action='store', type=str)
     parser.add_argument('--log_path', default='./logs/', action='store', type=str)
     parser.add_argument('--visualize', default=True, action='store_true')
@@ -305,7 +305,7 @@ if __name__=="__main__":
     parser.add_argument('--bs', default = 8, action='store', type=int)
     # parser.add_argument('--gpu_id', default=['0','1'], action='store', type=str, required=False)
     parser.add_argument('--gpu_id', default='1', action='store', type=str, required=False)
-    parser.add_argument('--experiment_name', default='DRAEM_Denoising_reject_autoencoder', choices=['DRAEM_Denoising_reconstruction, liver, brain, head'], action='store')
+    parser.add_argument('--experiment_name', default='DRAEM_Denoising_reject_SGD', choices=['DRAEM_Denoising_reconstruction, liver, brain, head'], action='store')
     parser.add_argument('--colorRange', default=100, action='store')
     parser.add_argument('--threshold', default=200, action='store')
     parser.add_argument('--dataset_name', default='hist_DIY', choices=['hist_DIY', 'Brain_MRI', 'CovidX', 'RESC_average'], action='store')
@@ -315,7 +315,8 @@ if __name__=="__main__":
     parser.add_argument('--rejection', default=True, action='store')
     parser.add_argument('--number_iterations', default=1, action='store')
     parser.add_argument('--control_texture', default=False, action='store')
-    parser.add_argument('--resume_training', default=True, action='store')
+    parser.add_argument('--cutout', default=False, action='store')
+    parser.add_argument('--resume_training', default=False, action='store')
     
     args = parser.parse_args()
    

@@ -496,6 +496,7 @@ def evaluation_DRAEM_half(args, model_denoise, model_segment, test_dataloader, e
             save_image(img, 'eval_raw.png')
             save_image(rec, 'eval_rec.png')
             save_image(out_mask_sm[:,1:,:,:], 'eval_mask_output.png')
+            save_image(gt, 'eval_gt.png')
             initial_feature = img
 
             anomaly_map = out_mask_sm
