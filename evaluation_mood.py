@@ -17,6 +17,8 @@ import csv
 from tqdm import tqdm
 from torchvision.utils import save_image
 
+import wandb
+
 import os
 
 def get_data_transforms(size, isize):
@@ -156,41 +158,8 @@ def evaluation(args, classifier, decoder, bn, test_dataloader, epoch, loss_funct
                     rec = np.transpose(rec, (1,2,0))
                     cv2.imwrite(initial_feature_path, rec*255)
                     
-                    
                     cv2.imwrite(gt_path, gt * 255)
-                    
-                    # save reconstructed image
-                    # img_reconstruction, _, _, _ = answer
-                    # img_reconstruction = min_max_norm(img_reconstruction[0,:,:,:].to('cpu').detach().numpy())
-                    # img_reconstruction = np.transpose(img_reconstruction, (1,2,0))
-                    # cv2.imwrite(reconstruction_path, img_reconstruction * 255)
-                    
-                    # distance_map = np.transpose(distance_map, (1,2,0))
-                    # distance_map = min_max_norm(distance_map)
-                    # cv2.imwrite(d_map_path, distance_map*255)
-                    
-                        
-                    # if config['multi_layer']:
-                    #     mode = ['a', 'b', 'c']
-                    #     for i, a_map_layer in enumerate(anomaly_list):
-                    #         a_map_layer_dir = os.path.join('/home/zhaoxiang/experiments_zzx/reconstruction/outputs', 
-                    #                 config['experiment_name'], config['dataset_name'], 
-                    #                 config['learning_rate'], name, mode[i])
-                    #         if not os.path.exists(a_map_layer_dir):
-                    #             os.mkdir(a_map_layer_dir)
-                                
-                    #         a_map_layer_path = os.path.join(a_map_layer_dir, 'a_map_{}_{}.png'.format(epoch, mode[i]))
-                    #         a_map_layer = gaussian_filter(a_map_layer, sigma=4)
-                    #         a_map_layer = min_max_norm(a_map_layer)
-                    #         cv2.imwrite(a_map_layer_path, a_map_layer*255)
-                            
-                    #         # set threshold to convert a_map to a binary map
-                    #         # threshold = 0.8
-                    #         p_map_layer = np.where(a_map_layer > threshold, 255, 0)
-                    #         p_map_layer_path = os.path.join('/home/zhaoxiang/experiments_zzx/reconstruction/outputs', 
-                    #                 config['experiment_name'], config['dataset_name'], 
-                    #                 config['learning_rate'], name, 'p_map_{}_{}.png'.format(epoch, mode[i]))
-                    #         cv2.imwrite(p_map_layer_path, p_map_layer)
+                
                     label = cv2.imread(gt_path, cv2.IMREAD_GRAYSCALE)
                     anomaly_map_rgb = cv2.imread(a_map_path)
                     label = cv2.resize(label, [224, 224])                    
@@ -555,6 +524,16 @@ def evaluation_DRAEM_half(args, model_denoise, model_segment, test_dataloader, e
                     prediction_map = np.where(anomaly_map > threshold, 255, 0)
                     cv2.imwrite(a_map_path, anomaly_map*255)
                     cv2.imwrite(p_map_path, prediction_map)
+            
+            
+            if j == 1000:
+                wandb.log({
+                    "eval_input_image": wandb.Image(img),
+                    "eval_anomaly_mask": wandb.Image(gt*255),
+                    "eval_anomaly_map": wandb.Image(anomaly_map*255)})
+    
+            
+            
             
             y_sample_true_[j] = (y_.max()).half()
             y_sample_true_mean_[j] = (y_.max()).half()
