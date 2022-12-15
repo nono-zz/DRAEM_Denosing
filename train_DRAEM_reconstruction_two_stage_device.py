@@ -185,7 +185,7 @@ def train_on_device(args):
         # model_denoise.train()
         loss_list = []
         
-        auroc_sp, dice_value = evaluation_DRAEM_half(args, model_denoise, model_segment, test_dataloader, epoch, loss_l1, run_name, device)
+        # auroc_sp, dice_value = evaluation_DRAEM_half(args, model_denoise, model_segment, test_dataloader, epoch, loss_l1, run_name, device)
         
         
         for img, aug, anomaly_mask in tqdm(train_dataloader):
