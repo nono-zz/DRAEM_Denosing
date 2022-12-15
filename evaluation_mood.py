@@ -526,11 +526,11 @@ def evaluation_DRAEM_half(args, model_denoise, model_segment, test_dataloader, e
                     cv2.imwrite(p_map_path, prediction_map)
             
             
-            if j == 1000:
-                wandb.log({
-                    "eval_input_image": wandb.Image(img),
-                    "eval_anomaly_mask": wandb.Image(gt*255),
-                    "eval_anomaly_map": wandb.Image(anomaly_map*255)})
+            # if j == 1000:
+            #     wandb.log({
+            #         "eval_input_image": wandb.Image(img),
+            #         "eval_anomaly_mask": wandb.Image(gt*255),
+            #         "eval_anomaly_map": wandb.Image(anomaly_map*255)})
     
             
             
