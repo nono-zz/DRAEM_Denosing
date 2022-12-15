@@ -177,14 +177,8 @@ def train_on_device(args):
             rec = model(aug)
             
             l1_loss = loss_l1(rec,img)
-            # ssim_loss = loss_ssim(rec, img)
             
             loss = l1_loss
-            # Dice_loss = loss_diceBCE(out_mask_sm, anomaly_mask)
-            
-            # loss = l2_loss + ssim_loss + segment_loss
-            # loss = Dice_loss
-
             
             save_image(aug, 'aug.png')
             save_image(rec, 'rec_output.png')
@@ -203,45 +197,8 @@ def train_on_device(args):
         with open(result_path, 'a') as f:
             f.writelines('epoch [{}/{}], loss:{:.4f}'.format(args.epochs, epoch, mean(loss_list)))   
                 
-        # with torch.no_grad():
-        #     if (epoch) % 3 == 0:
-        #         model_segment.eval()
-        #         model_denoise.eval()
-        #         error_list = []
-        #         for img, gt, label, img_path, saves in val_dataloader:
-        #             img = img.cuda()
-        #             gt = gt.cuda()
-                    
-        #             rec = model_denoise(img)
-                    
-        #             joined_in = torch.cat((rec, img), dim=1)
-                    
-        #             out_mask = model_segment(joined_in)
-        #             out_mask_sm = torch.softmax(out_mask, dim=1)
-                    
-        #             if gt.max() != 0:
-        #                 segment_loss = loss_focal(out_mask_sm, gt)
-        #                 loss = segment_loss
-        #             else:
-        #                 continue
-                    
-        #             save_image(img, 'eval_aug.png')
-        #             save_image(rec, 'eval_rec_output.png')
-        #             save_image(gt, 'eval_mask_target.png')
-        #             save_image(out_mask_sm[:,1:,:,:], 'gt_mask_output.png')
-                    
-        #             error_list.append(loss.item())
-                
-        #         print('eval [{}/{}], error:{:.4f}'.format(args.epochs, epoch, mean(error_list)))
-                # visualizer.plot_loss(mean(error_list), epoch, loss_name='L1_loss_eval')
-                # visualizer.visualize_image_batch(input, epoch, image_name='target_eval')
-                # visualizer.visualize_image_batch(output, epoch, image_name='output_eval')
-                
         if (epoch) % 10 == 0:
             model.eval()
-            # dice_value, auroc_px, auroc_sp = evaluation_reconstruction(args, model, test_dataloader, epoch, loss_l1, run_name)
-            # result_path = os.path.join('/home/zhaoxiang/output', run_name, 'results.txt')
-            # print('Pixel Auroc:{:.3f}, Sample Auroc{:.3f}, Dice{:3f}'.format(auroc_px, auroc_sp, dice_value))
             
             dice_value, auroc_sp = evaluation_reconstruction(args, model, test_dataloader, epoch, loss_l1, run_name)
             result_path = os.path.join('/home/zhaoxiang/output', run_name, 'results.txt')
@@ -263,7 +220,7 @@ if __name__=="__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--obj_id', default=1,  action='store', type=int)
     parser.add_argument('--lr', default=0.0001, action='store', type=float)
-    parser.add_argument('--epochs', default=700, action='store', type=int)
+    parser.add_argument('--epochs', default=500, action='store', type=int)
     parser.add_argument('--checkpoint_path', default='./checkpoints/', action='store', type=str)
     parser.add_argument('--log_path', default='./logs/', action='store', type=str)
     parser.add_argument('--visualize', default=True, action='store_true')
@@ -278,14 +235,18 @@ if __name__=="__main__":
     # need to be changed/checked every time
     parser.add_argument('--bs', default = 8, action='store', type=int)
     parser.add_argument('--gpu_id', default=['0','1'], action='store', type=str, required=False)
-    parser.add_argument('--experiment_name', default='ColorJitter_reconstruction', choices=['DRAEM_Denoising_reconstruction, RandomShape_reconstruction, brain, head'], action='store')
+    parser.add_argument('--experiment_name', default='ColorJitter_reconstruction_experiment_1', choices=['DRAEM_Denoising_reconstruction, RandomShape_reconstruction, brain, head'], action='store')
     parser.add_argument('--colorRange', default=100, action='store')
     parser.add_argument('--threshold', default=200, action='store')
     parser.add_argument('--dataset_name', default='hist_DIY', choices=['hist_DIY', 'Brain_MRI', 'CovidX', 'RESC_average'], action='store')
     parser.add_argument('--model', default='ws_skip_connection', choices=['ws_skip_connection', 'DRAEM_reconstruction', 'DRAEM_discriminitive'], action='store')
     parser.add_argument('--process_method', default='ColorJitter', choices=['none', 'Guassian_noise', 'DRAEM', 'Simplex_noise'], action='store')
     parser.add_argument('--multi_layer', default=False, action='store')
-    parser.add_argument('--resume_training', default=True, action='store')
+    parser.add_argument('--rejection', default=True, action='store')
+    parser.add_argument('--number_iterations', default=1, action='store')
+    parser.add_argument('--control_texture', default=False, action='store')
+    parser.add_argument('--cutout', default=False, action='store')
+    parser.add_argument('--resume_training', default=False, action='store')
     
     args = parser.parse_args()
    
