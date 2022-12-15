@@ -819,10 +819,6 @@ def evaluation_reconstruction_seg(args, model, test_dataloader, epoch, loss_func
                     # evaluation_reconstructionfeature = np.transpose(initial_feature, (1,2,0))
                     cv2.imwrite(initial_feature_path, initial_feature[0,0,:,:]*255)
                     
-                    rec_img = rec[0,0,:,:].to('cpu').detach().numpy()
-                    # rec_img = np.transpose(rec_img, (1,2,0))
-                    cv2.imwrite(reconstruction_path, rec_img*255)
-                    
                     cv2.imwrite(gt_path, gt * 255)
                     # cv2.imwrite(d_map_path, difference*255)
                             
