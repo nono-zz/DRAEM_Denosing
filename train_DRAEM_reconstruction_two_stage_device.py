@@ -147,7 +147,11 @@ def train_on_device(args):
         result_path = os.path.join(experiment_path, 'results.txt')
         
         # load the pretrained 
-        model_denoise.load_state_dict(torch.load(os.path.join(experiment_path, 'reconstruction_last.pth'))['model'])
+        # model_denoise.load_state_dict(torch.load(os.path.join(experiment_path, 'reconstruction_last.pth'))['model'])
+        model_denoise.load_state_dict(torch.load(os.path.join(experiment_path, 'exp_4_epoch_200.pth'))['model'])
+        # model_denoise.load_state_dict(torch.load(os.path.join(experiment_path, 'best_74.pth'))['model'])
+        # model_denoise.load_state_dict(torch.load(os.path.join(experiment_path, 'sp_77_epoch_60.pth'))['model'])
+        # model_denoise.load_state_dict(torch.load(os.path.join(experiment_path, 'SP_75_epoch_70.pth'))['model'])
         
         
     last_epoch = 0
@@ -157,9 +161,11 @@ def train_on_device(args):
         last_epoch = torch.load(ckp_path)['epoch']
         
     train_data = MVTecDataset(root=main_path, transform = test_transform, gt_transform=gt_transform, phase='train', dirs = dirs, data_source=args.experiment_name, args = args)
-    test_data = MVTecDataset_cross_validation(root='/home/zhaoxiang/dataset/LiTs_with_labels', transform = test_transform, gt_transform=gt_transform, phase='test', data_source=args.experiment_name, args = args)
-    # test_data = MVTecDataset(root=main_path, transform = test_transform, gt_transform=gt_transform, phase='test', dirs = dirs, data_source=args.experiment_name, args = args)
     # test_data = MVTecDataset_cross_validation(root='/home/zhaoxiang/dataset/LiTs_with_labels', transform = test_transform, gt_transform=gt_transform, phase='test', data_source=args.experiment_name, args = args)
+    # test_data = MVTecDataset(root=main_path, transform = test_transform, gt_transform=gt_transform, phase='test', dirs = dirs, data_source=args.experiment_name, args = args)
+    test_data = MVTecDataset_cross_validation(root='/home/zhaoxiang/dataset/LiTs_with_labels', transform = test_transform, gt_transform=gt_transform, phase='test', data_source=args.experiment_name, args = args)
+    # train_data = MVTecDataset(root=main_path, transform = test_transform, gt_transform=gt_transform, phase='train', dirs = dirs, data_source=args.experiment_name, args = args)
+    
         
     train_dataloader = torch.utils.data.DataLoader(train_data, batch_size = args.bs, shuffle=True)
     test_dataloader = torch.utils.data.DataLoader(test_data, batch_size = 1, shuffle = False)
@@ -230,7 +236,7 @@ def train_on_device(args):
         with open(result_path, 'a') as f:
             f.writelines('epoch [{}/{}], loss:{:.4f} \n'.format(args.epochs, epoch, mean(loss_list)))
     
-        if (epoch) % 10 == 0:
+        if (epoch) % 5 == 0:
             model_segment.eval()
             auroc_sp, dice_value = evaluation_DRAEM_half(args, model_denoise, model_segment, test_dataloader, epoch, loss_l1, run_name, device)
             # auroc_sp = 0.5
@@ -246,19 +252,19 @@ def train_on_device(args):
             torch.save({'model': model_segment.state_dict(),
                         'epoch': epoch}, ckp_path)
             
-            if auroc_sp > best_SP:
-                best_SP = auroc_sp
-                torch.save({'model': model_segment.state_dict(),
-                        'epoch': epoch,
-                        'SP': best_SP,
-                        'dice': dice_value}, ckp_path.replace('last', 'bestSP_{}_DICE_{}'.format(best_SP, dice_value)))
+            # if auroc_sp > best_SP:
+            #     best_SP = auroc_sp
+            #     torch.save({'model': model_segment.state_dict(),
+            #             'epoch': epoch,
+            #             'SP': best_SP,
+            #             'dice': dice_value}, ckp_path.replace('last', 'bestSP_{}_DICE_{}'.format(best_SP, dice_value)))
             
-            if dice_value > best_dice:
-                best_dice = dice_value
-                torch.save({'model': model_segment.state_dict(),
-                        'epoch': epoch,
-                        'SP': best_SP,
-                        'dice': dice_value}, ckp_path.replace('last', 'SP_{}_bestDICE_{}'.format(auroc_sp,best_dice)))
+            # if dice_value > best_dice:
+            #     best_dice = dice_value
+            #     torch.save({'model': model_segment.state_dict(),
+            #             'epoch': epoch,
+            #             'SP': best_SP,
+            #             'dice': dice_value}, ckp_path.replace('last', 'SP_{}_bestDICE_{}'.format(auroc_sp,best_dice)))
 
                 
         
@@ -287,14 +293,14 @@ if __name__=="__main__":
     parser.add_argument('--bs', default = 8, action='store', type=int)
     # parser.add_argument('--gpu_id', default=['0','1'], action='store', type=str, required=False)
     parser.add_argument('--gpu_id', default='1', action='store', type=str, required=False)
-    parser.add_argument('--experiment_name', default='DRAEM_Denoising_twoStage', choices=['DRAEM_Denoising_reconstruction, liver, brain, head'], action='store')
+    parser.add_argument('--experiment_name', default='DRAEM_Denoising_twoStage_woRejection_experiement_2', choices=['DRAEM_Denoising_reconstruction, liver, brain, head'], action='store')
     parser.add_argument('--colorRange', default=100, action='store')
     parser.add_argument('--threshold', default=200, action='store')
     parser.add_argument('--dataset_name', default='hist_DIY', choices=['hist_DIY', 'Brain_MRI', 'CovidX', 'RESC_average'], action='store')
-    parser.add_argument('--model', default='DRAEM', choices=['ws_skip_connection', 'DRAEM_reconstruction', 'DRAEM_discriminitive'], action='store')
+    parser.add_argument('--model', default='DRAEM', choices=['ws_skip_connectiosn', 'DRAEM_reconstruction', 'DRAEM_discriminitive'], action='store')
     parser.add_argument('--process_method', default='Gaussian_noise', choices=['none', 'Guassian_noise', 'DRAEM', 'Simplex_noise'], action='store')
     parser.add_argument('--multi_layer', default=False, action='store')
-    parser.add_argument('--rejection', default=True, action='store')
+    parser.add_argument('--rejection', default=False, action='store')
     parser.add_argument('--number_iterations', default=1, action='store')
     parser.add_argument('--control_texture', default=False, action='store')
     parser.add_argument('--cutout', default=False, action='store')
