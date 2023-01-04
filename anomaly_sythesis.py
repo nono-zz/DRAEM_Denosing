@@ -415,7 +415,7 @@ if __name__ == '__main__':
     img_names.sort()
     
     
-    for i in range(5):
+    for i in range(1):
         for img_name in img_names:
             
             img_path = os.path.join(root, img_name)
@@ -428,9 +428,9 @@ if __name__ == '__main__':
             
         
             # big light anomalies
-            colorJitter_img, colorJitter_gt = colorJitterRandom(img_numpy, args, colorRange=100, threshold=200)
-            while(colorJitter_gt.sum() == 0):
-                colorJitter_img, colorJitter_gt = colorJitterRandom(img_numpy, colorRange=100, threshold=200)
+            colorJitter_img, colorJitter_gt = colorJitterRandom_old(img_numpy, args, colorRange=100, threshold=200)
+            # while(colorJitter_gt.sum() == 0):
+            #     colorJitter_img, colorJitter_gt = colorJitterRandom(img_numpy, colorRange=100, threshold=200)
                 
                 # # small anomalies
                 # colorJitter_img, colorJitter_gt_2 = colorJitterRandom(img_numpy, minscale=80, colorRange=100, threshold=230)
