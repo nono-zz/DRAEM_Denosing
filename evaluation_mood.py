@@ -69,6 +69,44 @@ def cal_anomaly_map(fs_list, ft_list, out_size=224, amap_mode='mul'):
             anomaly_map += a_map
     return anomaly_map, a_map_list
 
+def gmsd(img1, img2):
+    # Convert images to grayscale
+    img1_gray = cv2.cvtColor(img1, cv2.COLOR_BGR2GRAY).astype(np.float32)
+    img2_gray = cv2.cvtColor(img2, cv2.COLOR_BGR2GRAY).astype(np.float32)
+
+    # Compute gradient images using Sobel filters
+    gx1 = cv2.Sobel(img1_gray, cv2.CV_32F, 1, 0, ksize=3)
+    gy1 = cv2.Sobel(img1_gray, cv2.CV_32F, 0, 1, ksize=3)
+    gx2 = cv2.Sobel(img2_gray, cv2.CV_32F, 1, 0, ksize=3)
+    gy2 = cv2.Sobel(img2_gray, cv2.CV_32F, 0, 1, ksize=3)
+
+    # Compute gradient magnitudes and angles
+    grad_mag1 = cv2.magnitude(gx1, gy1)
+    grad_mag2 = cv2.magnitude(gx2, gy2)
+    grad_angle1 = cv2.phase(gx1, gy1)
+    grad_angle2 = cv2.phase(gx2, gy2)
+
+    # Compute weights based on gradient magnitudes and angles
+    k1, k2, L, alpha = 0.01, 0.03, 255, 0.1
+    weight1 = ((k1*L)**2 + grad_mag1**2)**alpha
+    weight2 = ((k1*L)**2 + grad_mag2**2)**alpha
+    weight_angle = k2*L*(np.sin(grad_angle1) - np.sin(grad_angle2))**2
+
+    # Compute mean and variance of weights
+    mean_weight1 = cv2.blur(weight1, (3, 3))
+    mean_weight2 = cv2.blur(weight2, (3, 3))
+    mean_weight_angle = cv2.blur(weight_angle, (3, 3))
+    sigma_weight1 = cv2.blur(weight1*weight1, (3, 3)) - mean_weight1**2
+    sigma_weight2 = cv2.blur(weight2*weight2, (3, 3)) - mean_weight2**2
+    sigma_weight_angle = cv2.blur(weight_angle*weight_angle, (3, 3)) - mean_weight_angle**2
+
+    # Compute GMSD
+    numerator = (2*mean_weight1*mean_weight2 + k1*L**2)*(2*sigma_weight_angle + k2*L**2)
+    denominator = (mean_weight1**2 + mean_weight2**2 + k1*L**2)*(sigma_weight1 + sigma_weight2 + k1*L**2)
+    gmsd = np.mean(numerator / denominator)
+
+    return gmsd
+
 
 def mean(list_x):
     return sum(list_x)/len(list_x)
@@ -701,7 +739,10 @@ def evaluation_reconstruction(args, model, test_dataloader, epoch, loss_function
             
             initial_feature = img.to('cpu').detach().numpy()
 
-            difference = cal_distance_map(rec[0,0,:,:].to('cpu').detach().numpy(), img[0,0,:,:].to('cpu').detach().numpy())            
+            # difference = cal_distance_map(rec[0,0,:,:].to('cpu').detach().numpy(), img[0,0,:,:].to('cpu').detach().numpy())
+            
+            # compute the score using GMSD
+            difference = gmsd(rec[0,0,:,:].to('cpu').detach().numpy(), img[0,0,:,:].to('cpu').detach().numpy())
             # names = ['liver_1_60', 'liver_2_452', 'liver_3_394', 'liver_4_457', 'liver_6_396', 'liver_7_487', 'liver_10_379'] 
             names = ['liver_1_59', 'liver_1_60', 'liver_1_66', 'liver_1_67', 'liver_2_415', 'liver_2_452', 'liver_3_394', 'liver_4_566', 'liver_4_457', 'liver_6_396', 'liver_8_448', 'liver_7_487', 'liver_10_328', 
                             'liver_10_335' 'liver_10_356', 'liver_10_379',  'liver_10_295', 'liver_10_422' , 'liver_16_374', 'liver_16_409', 'liver_18_413', 'liver_19_440', 'liver_20_487', 'liver_21_388', 'liver_23_335',
