@@ -69,10 +69,10 @@ def cal_anomaly_map(fs_list, ft_list, out_size=224, amap_mode='mul'):
             anomaly_map += a_map
     return anomaly_map, a_map_list
 
-def gmsd(img1, img2):
+def gmsd(img1_gray, img2_gray):
     # Convert images to grayscale
-    img1_gray = cv2.cvtColor(img1, cv2.COLOR_BGR2GRAY).astype(np.float32)
-    img2_gray = cv2.cvtColor(img2, cv2.COLOR_BGR2GRAY).astype(np.float32)
+    # img1_gray = cv2.cvtColor(img1, cv2.COLOR_BGR2GRAY).astype(np.float32)
+    # img2_gray = cv2.cvtColor(img2, cv2.COLOR_BGR2GRAY).astype(np.float32)
 
     # Compute gradient images using Sobel filters
     gx1 = cv2.Sobel(img1_gray, cv2.CV_32F, 1, 0, ksize=3)
@@ -103,9 +103,41 @@ def gmsd(img1, img2):
     # Compute GMSD
     numerator = (2*mean_weight1*mean_weight2 + k1*L**2)*(2*sigma_weight_angle + k2*L**2)
     denominator = (mean_weight1**2 + mean_weight2**2 + k1*L**2)*(sigma_weight1 + sigma_weight2 + k1*L**2)
-    gmsd = np.mean(numerator / denominator)
+    # gmsd = np.mean(numerator / denominator)
+    gmsd = numerator / denominator
+    
+    # returns shape gmsd 256x256
+    return 1 - gmsd
 
-    return gmsd
+def gmsd_DIY(img1_gray, img2_gray):    
+    # prewitt filter
+    kernelx = np.array([[1,1,1],[0,0,0],[-1,-1,-1]])
+    kernely = np.array([[-1,0,1],[-1,0,1],[-1,0,1]])
+    gx1 = cv2.filter2D(img1_gray, -1, kernelx)
+    gy1 = cv2.filter2D(img1_gray, -1, kernely)
+    gx2 = cv2.filter2D(img2_gray, -1, kernelx)
+    gy2 = cv2.filter2D(img2_gray, -1, kernely)
+
+    # Compute gradient magnitudes and angles
+    gri_1 = np.sqrt(np.square(np.multiply(img1_gray, gx1)) + np.square(np.multiply(img1_gray, gy1)))
+    gri_2 = np.sqrt(np.square(np.multiply(img2_gray, gx2)) + np.square(np.multiply(img2_gray, gy2)))
+    
+    # GMSD
+    sigma = 0.001
+    gmsd = (2 * np.multiply(gri_1, gri_2) + sigma) / (np.square(gri_1) + np.square(gri_2) + sigma)
+    
+    # returns shape gmsd 256x256
+    return 1 - gmsd
+
+def gmsd_DIY_w_pooling(img1_tensor, img2_tensor):
+    gmsd_sum = 0
+    for i in range(4):
+        # return a gmsd value
+        gmsd_sum += np.mean(gmsd_DIY(img1_tensor[0,0,:,:].to('cpu').detach().numpy(), img2_tensor[0,0,:,:].to('cpu').detach().numpy()))
+        img1_tensor = F.avg_pool2d(img1_tensor, kernel_size=2, stride=2)
+        img2_tensor = F.avg_pool2d(img2_tensor, kernel_size=2, stride=2)
+        
+    return 1 - gmsd_sum/4
 
 
 def mean(list_x):
@@ -719,7 +751,7 @@ def evaluation_reconstruction(args, model, test_dataloader, epoch, loss_function
     pr_list_px = []
     gt_list_sp = []
     pr_list_sp = []
-    aupro_list = []
+    pr_list_sp_GMSD = []
     pr_binary_list_px = []
     img_paths, preds, gts, intersections, dices, a_map_max, losses, losses_feature, losses_reconstruction = [], [], [], [], [], [], [], [], []
 
@@ -739,10 +771,12 @@ def evaluation_reconstruction(args, model, test_dataloader, epoch, loss_function
             
             initial_feature = img.to('cpu').detach().numpy()
 
-            # difference = cal_distance_map(rec[0,0,:,:].to('cpu').detach().numpy(), img[0,0,:,:].to('cpu').detach().numpy())
+            difference = cal_distance_map(rec[0,0,:,:].to('cpu').detach().numpy(), img[0,0,:,:].to('cpu').detach().numpy())
             
             # compute the score using GMSD
-            difference = gmsd(rec[0,0,:,:].to('cpu').detach().numpy(), img[0,0,:,:].to('cpu').detach().numpy())
+            # difference_GMSD = gmsd(rec[0,0,:,:].to('cpu').detach().numpy(), img[0,0,:,:].to('cpu').detach().numpy())
+            # difference_GMSD = gmsd_DIY(rec[0,0,:,:].to('cpu').detach().numpy(), img[0,0,:,:].to('cpu').detach().numpy())
+            difference_GMSD = gmsd_DIY_w_pooling(rec, img)
             # names = ['liver_1_60', 'liver_2_452', 'liver_3_394', 'liver_4_457', 'liver_6_396', 'liver_7_487', 'liver_10_379'] 
             names = ['liver_1_59', 'liver_1_60', 'liver_1_66', 'liver_1_67', 'liver_2_415', 'liver_2_452', 'liver_3_394', 'liver_4_566', 'liver_4_457', 'liver_6_396', 'liver_8_448', 'liver_7_487', 'liver_10_328', 
                             'liver_10_335' 'liver_10_356', 'liver_10_379',  'liver_10_295', 'liver_10_422' , 'liver_16_374', 'liver_16_409', 'liver_18_413', 'liver_19_440', 'liver_20_487', 'liver_21_388', 'liver_23_335',
@@ -786,6 +820,8 @@ def evaluation_reconstruction(args, model, test_dataloader, epoch, loss_function
             pr_binary_list_px.extend(prediction_map.ravel())
             gt_list_sp.append(np.max(gt.astype(int)))
             pr_list_sp.append(np.max(difference))
+            pr_list_sp_GMSD.append(difference_GMSD)
+            
             
             # intersection = (prediction_map.ravel() * gt.astype(int).ravel()).sum()
             
@@ -801,13 +837,15 @@ def evaluation_reconstruction(args, model, test_dataloader, epoch, loss_function
         dice_value = dice(np.array(gt_list_px), np.array(pr_binary_list_px))
         # auroc_px = round(roc_auc_score(gt_list_px, pr_list_px), 3)
         auroc_sp = round(roc_auc_score(gt_list_sp, pr_list_sp), 3)
+        auroc_sp_GMSD = round(roc_auc_score(gt_list_sp, pr_list_sp_GMSD), 3)
+        
         
         # csv_path = os.path.join('/home/zhaoxiang/output', run_name, 'dice_results.csv')
         # df = pd.DataFrame({'img_path': img_paths, 'pred': preds, 'gt': gts, 'intersection': intersections, 'dice': dices, 'a_map_max': a_map_max})
         # df.to_csv(csv_path, index=False)
         
     # return dice_value, auroc_px, auroc_sp
-    return dice_value, auroc_sp
+    return dice_value, auroc_sp, auroc_sp_GMSD
 
 def evaluation_reconstruction_seg(args, model, test_dataloader, epoch, loss_function, run_name, threshold = 0.1):
     

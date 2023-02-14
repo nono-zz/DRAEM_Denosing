@@ -164,51 +164,51 @@ def train_on_device(args):
         # evaluation(args, model_denoise, model_segment, test_dataloader, epoch, loss_l1, visualizer, run_name)
         # evaluation_reconstruction(args, model, test_dataloader, epoch, loss_l1, run_name)
         
-        model.train()
-        loss_list = []
+        # model.train()
+        # loss_list = []
         
-        for img, aug, anomaly_mask in tqdm(train_dataloader):
-            img = torch.reshape(img, (-1, 1, args.img_size, args.img_size))
-            aug = torch.reshape(aug, (-1, 1, args.img_size, args.img_size))
-            anomaly_mask = torch.reshape(anomaly_mask, (-1, 1, args.img_size, args.img_size))
+        # for img, aug, anomaly_mask in tqdm(train_dataloader):
+        #     img = torch.reshape(img, (-1, 1, args.img_size, args.img_size))
+        #     aug = torch.reshape(aug, (-1, 1, args.img_size, args.img_size))
+        #     anomaly_mask = torch.reshape(anomaly_mask, (-1, 1, args.img_size, args.img_size))
             
-            img = img.cuda()
-            aug = aug.cuda()
-            anomaly_mask = anomaly_mask.cuda()
+        #     img = img.cuda()
+        #     aug = aug.cuda()
+        #     anomaly_mask = anomaly_mask.cuda()
 
-            rec = model(aug)
+        #     rec = model(aug)
             
-            l1_loss = loss_l1(rec,img)
+        #     l1_loss = loss_l1(rec,img)
             
-            loss = l1_loss
+        #     loss = l1_loss
             
-            save_image(aug, 'aug.png')
-            save_image(rec, 'rec_output.png')
-            save_image(img, 'rec_target.png')
-            save_image(anomaly_mask, 'mask_target.png')
-            # loss = loss_l1(img, output)
+        #     save_image(aug, 'aug.png')
+        #     save_image(rec, 'rec_output.png')
+        #     save_image(img, 'rec_target.png')
+        #     save_image(anomaly_mask, 'mask_target.png')
+        #     # loss = loss_l1(img, output)
 
-            optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
+        #     optimizer.zero_grad()
+        #     loss.backward()
+        #     optimizer.step()
         
-            loss_list.append(loss.item())
+        #     loss_list.append(loss.item())
             
-        print('epoch [{}/{}], loss:{:.4f}'.format(args.epochs, epoch, mean(loss_list)))
+        # print('epoch [{}/{}], loss:{:.4f}'.format(args.epochs, epoch, mean(loss_list)))
         
-        with open(result_path, 'a') as f:
-            f.writelines('epoch [{}/{}], loss:{:.4f}'.format(args.epochs, epoch, mean(loss_list)))   
+        # with open(result_path, 'a') as f:
+        #     f.writelines('epoch [{}/{}], loss:{:.4f}'.format(args.epochs, epoch, mean(loss_list)))   
                 
         if (epoch) % 10 == 0:
             model.eval()
             
-            dice_value, auroc_sp = evaluation_reconstruction(args, model, test_dataloader, epoch, loss_l1, run_name)
+            dice_value, auroc_sp, auroc_sp_GMSD = evaluation_reconstruction(args, model, test_dataloader, epoch, loss_l1, run_name)
             result_path = os.path.join('/home/zhaoxiang/output', run_name, 'results.txt')
-            print('Sample Auroc{:.3f}, Dice{:3f}'.format(auroc_sp, dice_value))
+            print('Sample Auroc{:.3f}, Sample Auroc GMSD{:.3f}, Dice{:3f}'.format(auroc_sp, auroc_sp_GMSD, dice_value))
             
             with open(result_path, 'a') as f:
                 # f.writelines('Epoch:{}, Pixel Auroc:{:.3f}, Sample Auroc{:.3f}, Dice:{:3f} \n'.format(epoch, auroc_px, auroc_sp, dice_value))   
-                f.writelines('Epoch:{}, Sample Auroc{:.3f}, Dice:{:3f} \n'.format(epoch, auroc_sp, dice_value))   
+                f.writelines('Epoch:{}, Sample Auroc{:.3f}, Sample Auroc GMSD{:.3f}, Dice:{:3f} \n'.format(epoch, auroc_sp, auroc_sp_GMSD, dice_value))   
             
             torch.save({'model': model.state_dict(),
                         'epoch': epoch}, ckp_path)
@@ -222,7 +222,7 @@ if __name__=="__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--obj_id', default=1,  action='store', type=int)
     parser.add_argument('--lr', default=0.0001, action='store', type=float)
-    parser.add_argument('--epochs', default=201, action='store', type=int)
+    parser.add_argument('--epochs', default=500, action='store', type=int)
     parser.add_argument('--checkpoint_path', default='./checkpoints/', action='store', type=str)
     parser.add_argument('--log_path', default='./logs/', action='store', type=str)
     parser.add_argument('--visualize', default=True, action='store_true')
@@ -237,7 +237,7 @@ if __name__=="__main__":
     # need to be changed/checked every time
     parser.add_argument('--bs', default = 8, action='store', type=int)
     parser.add_argument('--gpu_id', default=['0','1'], action='store', type=str, required=False)
-    parser.add_argument('--experiment_name', default='ColorJitter_reconstruction_woRejection_experiment_3', choices=['DRAEM_Denoising_reconstruction, RandomShape_reconstruction, brain, head'], action='store')
+    parser.add_argument('--experiment_name', default='ColorJitter_reconstruction_woRejection_experiment_1', choices=['DRAEM_Denoising_reconstruction, RandomShape_reconstruction, brain, head'], action='store')
     parser.add_argument('--colorRange', default=100, action='store')
     parser.add_argument('--threshold', default=200, action='store')
     parser.add_argument('--dataset_name', default='hist_DIY', choices=['hist_DIY', 'Brain_MRI', 'CovidX', 'RESC_average'], action='store')
