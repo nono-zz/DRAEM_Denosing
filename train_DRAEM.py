@@ -156,7 +156,7 @@ def train_on_device(args):
     test_data = MVTecDataset_cross_validation(root='/home/zhaoxiang/dataset/LiTs_with_labels', transform = test_transform, gt_transform=gt_transform, phase='test', data_source=args.experiment_name, args = args)
     
         
-    train_dataloader = torch.utils.data.DataLoader(train_data, batch_size = args.bs, shuffle=False)
+    train_dataloader = torch.utils.data.DataLoader(train_data, batch_size = args.bs, shuffle=True)
     test_dataloader = torch.utils.data.DataLoader(test_data, batch_size = 1, shuffle = False)
         
     loss_l1 = torch.nn.L1Loss()
