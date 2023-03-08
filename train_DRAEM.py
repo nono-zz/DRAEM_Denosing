@@ -168,12 +168,9 @@ def train_on_device(args):
     loss_focal = FocalLoss()
     
     for epoch in range(last_epoch, args.epochs):
-    # for epoch in range(args.epochs):
-        # evaluation(args, model_denoise, model_segment, test_dataloader, epoch, loss_l1, visualizer, run_name)
         model_segment.train()
         model_denoise.train()
         loss_list = []
-        auroc_sp, dice_value = evaluation_DRAEM_half(args, model_denoise, model_segment, test_dataloader, epoch, loss_l1, run_name, device)
         for img, aug, anomaly_mask in tqdm(train_dataloader):
             img = torch.reshape(img, (-1, 1, args.img_size, args.img_size))
             aug = torch.reshape(aug, (-1, 1, args.img_size, args.img_size))
