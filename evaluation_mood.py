@@ -375,7 +375,7 @@ def evaluation_DRAEM(args, model_denoise, model_segment, test_dataloader, epoch,
         
         
     # return dice_value, auroc_px, auroc_sp
-    return auroc_sp
+    return auroc_sp, dice_value
 
 
 def evaluation_DRAEM_with_device(args, model_denoise, model_segment, test_dataloader, epoch, loss_function, run_name, device, threshold = 0.5):

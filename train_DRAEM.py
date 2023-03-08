@@ -14,7 +14,7 @@ import torch.nn.functional as F
 import random
 
 from dataloader_zzx import MVTecDataset, MVTecDataset_cross_validation
-from evaluation_mood import evaluation, evaluation_DRAEM
+from evaluation_mood import evaluation, evaluation_DRAEM, evaluation_DRAEM_half
 from cutpaste import CutPaste3Way, CutPasteUnion
 
 from model import ReconstructiveSubNetwork, DiscriminativeSubNetwork
@@ -109,6 +109,7 @@ def train_on_device(args):
     from model_noise import UNet
     
     # device = torch.device('cuda:{}'.format(args.gpu_id))
+    device = torch.device('cuda')
     n_input = 1
     n_classes = 1           # the target is the reconstructed image
     depth = 4
@@ -172,9 +173,7 @@ def train_on_device(args):
         model_segment.train()
         model_denoise.train()
         loss_list = []
-        
-        # evaluation_DRAEM(args, model_denoise, model_segment, test_dataloader, epoch, loss_l1, run_name)
-        # for img, label, img_path in train_dataloader:         
+        auroc_sp, dice_value = evaluation_DRAEM_half(args, model_denoise, model_segment, test_dataloader, epoch, loss_l1, run_name, device)
         for img, aug, anomaly_mask in tqdm(train_dataloader):
             img = torch.reshape(img, (-1, 1, args.img_size, args.img_size))
             aug = torch.reshape(aug, (-1, 1, args.img_size, args.img_size))
@@ -219,17 +218,19 @@ def train_on_device(args):
         if (epoch) % 10 == 0:
             model_segment.eval()
             model_denoise.eval()
-            dice_value, auroc_px, auroc_sp = evaluation_DRAEM(args, model_denoise, model_segment, test_dataloader, epoch, loss_l1, run_name)
+            auroc_sp, dice_value = evaluation_DRAEM_half(args, model_denoise, model_segment, test_dataloader, epoch, loss_l1, run_name, device)
             result_path = os.path.join('/home/zhaoxiang/output', run_name, 'results.txt')
-            print('Pixel Auroc:{:.3f}, Sample Auroc{:.3f}, Dice{:3f}'.format(auroc_px, auroc_sp, dice_value))
+            print('Sample Auroc{:.3f}, Dice{:.3f}'.format(auroc_sp, dice_value))
             
             with open(result_path, 'a') as f:
-                f.writelines('Epoch:{}, Pixel Auroc:{:.3f}, Sample Auroc{:.3f}, Dice:{:3f} \n'.format(epoch, auroc_px, auroc_sp, dice_value))   
+                f.writelines('Epoch:{}, Sample Auroc{:.3f}, Dice{:.3f} \n'.format(epoch, auroc_sp, dice_value)) 
             
-            # torch.save(model_segment.state_dict(), ckp_path.replace('last', 'segment'))
-            torch.save({'model': model_segment.state_dict(),
-                        'epoch': epoch}, ckp_path.replace('last', 'segment'))
-        
+            
+            torch.save({
+                'model_denoise': model_denoise.state_dict(),
+                'model_segment': model_segment.state_dict(),
+                'epoch': epoch}, ckp_path)
+            
         
 
 if __name__=="__main__":
