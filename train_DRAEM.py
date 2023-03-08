@@ -122,7 +122,8 @@ def train_on_device(args):
     elif args.model == 'DRAEM_discriminitive':
         model = DiscriminativeSubNetwork(in_channels=n_input, out_channels=n_input).cuda()
     elif args.model == 'DRAEM':
-        model_denoise = UNet(in_channels=n_input, n_classes=n_classes, norm="group", up_mode="upconv", depth=depth, wf=wf, padding=True)
+        # model_denoise = UNet(in_channels=n_input, n_classes=n_classes, norm="group", up_mode="upconv", depth=depth, wf=wf, padding=True)
+        model = ReconstructiveSubNetwork(in_channels=n_input, out_channels=n_input).cuda()
         model_segment = DiscriminativeSubNetwork(in_channels=2, out_channels=2).cuda()
         # model_denoise = torch.nn.DataParallel(model_denoise, device_ids=[0])
         # model_segment = torch.nn.DataParallel(model_segment, device_ids=[0])
