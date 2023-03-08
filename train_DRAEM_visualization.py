@@ -23,6 +23,12 @@ from model import ReconstructiveSubNetwork, DiscriminativeSubNetwork
 from tqdm import tqdm
 from torch.optim.lr_scheduler import StepLR
 
+from sklearn.manifold import TSNE
+import seaborn as sns
+import matplotlib.pyplot as plt
+import pandas as pd
+
+
 def get_lr(optimizer):
     for param_group in optimizer.param_groups:
         return param_group['lr']
@@ -128,7 +134,7 @@ def train_on_device(args):
     elif args.model == 'DRAEM':
         model_denoise = UNet(in_channels=n_input, n_classes=n_classes, norm="group", up_mode="upconv", depth=depth, wf=wf, padding=True).to(device)
         # model_denoise = DiscriminativeSubNetwork(in_channels=n_input, out_channels=n_input).to(device)
-        model_segment = DiscriminativeSubNetwork(in_channels=2, out_channels=2).to(device)
+        model_segment = DiscriminativeSubNetwork(in_channels=2, out_channels=2, out_latent_features=True).to(device)
         
         model_denoise.to(device)
         model_segment.to(device)
@@ -148,10 +154,7 @@ def train_on_device(args):
         
         # load the pretrained 
         # model_denoise.load_state_dict(torch.load(os.path.join(experiment_path, 'reconstruction_last.pth'))['model'])
-        model_denoise.load_state_dict(torch.load(os.path.join(experiment_path, 'exp_1.pth'))['model'])
-        # model_denoise.load_state_dict(torch.load(os.path.join(experiment_path, 'best_74.pth'))['model'])
-        # model_denoise.load_state_dict(torch.load(os.path.join(experiment_path, 'sp_77_epoch_60.pth'))['model'])
-        # model_denoise.load_state_dict(torch.load(os.path.join(experiment_path, 'SP_75_epoch_70.pth'))['model'])
+        model_denoise.load_state_dict(torch.load(os.path.join(experiment_path, 'experiement_3_epoch_200.pth'))['model'])
         
         
     last_epoch = 0
@@ -168,106 +171,82 @@ def train_on_device(args):
     
         
     train_dataloader = torch.utils.data.DataLoader(train_data, batch_size = args.bs, shuffle=True)
-    test_dataloader = torch.utils.data.DataLoader(test_data, batch_size = 1, shuffle = False)
+    test_dataloader = torch.utils.data.DataLoader(test_data, batch_size = 1, shuffle = True)
         
-    loss_l1 = torch.nn.L1Loss()
-    optimizer = torch.optim.Adam(model_segment.parameters(), lr=args.lr)
-    # optimizer = torch.optim.Adam(list(model_segment.parameters()) + list(model_denoise.parameters()), lr = args.lr)
-    # optimizer = torch.optim.SGD(list(model_segment.parameters()) + list(model_denoise.parameters()), lr = args.lr)
+    model_denoise.eval()
+    model_segment.eval()
     
+    data = []
+    target = []
     
-    loss_l2 = torch.nn.modules.loss.MSELoss()
-    loss_ssim = SSIM(device=device)
-    loss_focal = FocalLoss()
-    loss_dice = DiceLoss()
-    loss_diceBCE = DiceBCELoss()
+    i = 0
+    iteration = 0
     
-    
-    best_SP = 0
-    best_dice = 0
-    
-    for epoch in range(last_epoch, args.epochs):
-        model_segment.train()
-        # model_denoise.train()
-        loss_list = []
-        
-        # auroc_sp, dice_value = evaluation_DRAEM_half(args, model_denoise, model_segment, test_dataloader, epoch, loss_l1, run_name, device)
-        
-        
-        for img, aug, anomaly_mask in tqdm(train_dataloader):
-            img = torch.reshape(img, (-1, 1, args.img_size, args.img_size))
-            aug = torch.reshape(aug, (-1, 1, args.img_size, args.img_size))
-            anomaly_mask = torch.reshape(anomaly_mask, (-1, 1, args.img_size, args.img_size))
+    with torch.no_grad():
+        for img, gt, label, img_path, save in tqdm(test_dataloader):
+            if iteration == 80:
+                break
+            iteration += 1
             
             img = img.to(device)
-            aug = aug.to(device)
-            anomaly_mask = anomaly_mask.to(device)
-
+            gt[gt > 0.1] = 1
+            gt[gt <= 0.1] = 0
+            # check if img is RGB
             with torch.no_grad():
-                rec = model_denoise(aug)
+                rec = model_denoise(img)
                 rec = rec.detach().cpu()
             rec = rec.to(device)
-            
-            joined_in = torch.cat((rec, aug), dim=1)
-            
-            out_mask = model_segment(joined_in)
-            out_mask_sm = torch.softmax(out_mask, dim=1)
 
-            l2_loss = loss_l2(rec,img)
-            ssim_loss = loss_ssim(rec, img)
+            features = torch.cat((rec, img), dim=1)
+            content = features.detach().cpu().numpy()
             
-            segment_loss = loss_focal(out_mask_sm, anomaly_mask)
-            # loss = segment_loss + l2_loss + ssim_loss
-            loss = segment_loss
             
-            save_image(aug, 'aug.png')
-            save_image(rec, 'rec_output.png')
-            save_image(img, 'rec_target.png')
-            save_image(anomaly_mask, 'mask_target.png')
-            save_image(out_mask_sm[:,1:,:,:], 'mask_output.png')
-
-            optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
-        
-            loss_list.append(loss.item())
-            
-        print('epoch [{}/{}], loss:{:.4f} \n'.format(args.epochs, epoch, mean(loss_list)))
-        with open(result_path, 'a') as f:
-            f.writelines('epoch [{}/{}], loss:{:.4f} \n'.format(args.epochs, epoch, mean(loss_list)))
+            data.append(content[0].ravel())
+            target.append(torch.max(gt[0]).detach().cpu().numpy() + 2)
     
-        if (epoch) % 5 == 0:
-            model_segment.eval()
-            auroc_sp, dice_value = evaluation_DRAEM_half(args, model_denoise, model_segment, test_dataloader, epoch, loss_l1, run_name, device)
-            # auroc_sp = 0.5
-            # dice_value = 0.5
-            result_path = os.path.join('/home/zhaoxiang/output', run_name, 'results.txt')
-            print('Sample Auroc{:.3f}, Dice{:.3f}'.format(auroc_sp, dice_value))
-            
-            with open(result_path, 'a') as f:
-                f.writelines('Epoch:{}, Sample Auroc{:.3f}, Dice{:.3f} \n'.format(epoch, auroc_sp, dice_value)) 
-            
-            
-            # torch.save(model_segment.state_dict(), ckp_path.replace('last', 'segment'))
-            torch.save({'model': model_segment.state_dict(),
-                        'epoch': epoch}, ckp_path)
-            
-            # if auroc_sp > best_SP:
-            #     best_SP = auroc_sp
-            #     torch.save({'model': model_segment.state_dict(),
-            #             'epoch': epoch,
-            #             'SP': best_SP,
-            #             'dice': dice_value}, ckp_path.replace('last', 'bestSP_{}_DICE_{}'.format(best_SP, dice_value)))
-            
-            # if dice_value > best_dice:
-            #     best_dice = dice_value
-            #     torch.save({'model': model_segment.state_dict(),
-            #             'epoch': epoch,
-            #             'SP': best_SP,
-            #             'dice': dice_value}, ckp_path.replace('last', 'SP_{}_bestDICE_{}'.format(auroc_sp,best_dice)))
+    
 
-                
+    for img, aug, anomaly_mask in tqdm(train_dataloader):
+        img = torch.reshape(img, (-1, 1, args.img_size, args.img_size))
+        aug = torch.reshape(aug, (-1, 1, args.img_size, args.img_size))
+        anomaly_mask = torch.reshape(anomaly_mask, (-1, 1, args.img_size, args.img_size))
         
+        img = img.to(device)
+        aug = aug.to(device)
+        anomaly_mask = anomaly_mask.to(device)
+
+        with torch.no_grad():
+            rec = model_denoise(aug)
+            rec = rec.detach().cpu()
+        rec = rec.to(device)
+        
+        features = torch.cat((rec, aug), dim=1)
+        content = features.detach().cpu().numpy()
+        
+        for j in range(args.bs):
+            data.append(content[j].ravel())
+            target.append(torch.max(anomaly_mask[j]).detach().cpu().numpy())
+                
+        i += 1
+        
+        if i == 80:
+            break
+        
+        
+    target = [0 if x == 2 else x for x in target]
+    target = [2 if x == 3 else x for x in target]
+    
+    # remove 0
+        
+    data = np.array(data)
+    target = np.array(target)
+
+    data = TSNE(n_components=2, perplexity=15, learning_rate=10, verbose=2).fit_transform(data)
+    
+    df = pd.DataFrame({"x":data[:, 0], "y":data[:, 1], "hue":target})
+
+    sns.scatterplot(x="x", y="y", data=df, hue="hue", legend="full")
+    plt.savefig("mnist_conv_autoencoder_data_visualization.png")
         
 
 if __name__=="__main__":
@@ -277,7 +256,7 @@ if __name__=="__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--obj_id', default=1,  action='store', type=int)
     parser.add_argument('--lr', default=0.0001, action='store', type=float)
-    parser.add_argument('--epochs', default=150, action='store', type=int)
+    parser.add_argument('--epochs', default=200, action='store', type=int)
     parser.add_argument('--checkpoint_path', default='./checkpoints/', action='store', type=str)
     parser.add_argument('--log_path', default='./logs/', action='store', type=str)
     parser.add_argument('--visualize', default=True, action='store_true')
@@ -290,13 +269,13 @@ if __name__=="__main__":
     parser.add_argument("-img_size", "--img_size", type=float, default=256, help="noise magnitude.")
     
     # need to be changed/checked every time
-    parser.add_argument('--bs', default = 8, action='store', type=int)
+    parser.add_argument('--bs', default = 1, action='store', type=int)
     # parser.add_argument('--gpu_id', default=['0','1'], action='store', type=str, required=False)
     parser.add_argument('--gpu_id', default='1', action='store', type=str, required=False)
-    parser.add_argument('--experiment_name', default='DRAEM_Denoising_twoStage_woRejection_experiement_2', choices=['DRAEM_Denoising_reconstruction, liver, brain, head'], action='store')
+    parser.add_argument('--experiment_name', default='Segmentation_unstable_exp_4', choices=['DRAEM_Denoising_reconstruction, liver, brain, head'], action='store')
     parser.add_argument('--colorRange', default=100, action='store')
-    parser.add_argument('--threshold', default=180, action='store')
-    parser.add_argument('--dataset_name', default='hist_DIY_sample', choices=['hist_DIY', 'Brain_MRI', 'CovidX', 'RESC_average'], action='store')
+    parser.add_argument('--threshold', default=200, action='store')
+    parser.add_argument('--dataset_name', default='hist_DIY', choices=['hist_DIY', 'Brain_MRI', 'CovidX', 'RESC_average'], action='store')
     parser.add_argument('--model', default='DRAEM', choices=['ws_skip_connectiosn', 'DRAEM_reconstruction', 'DRAEM_discriminitive'], action='store')
     parser.add_argument('--process_method', default='Gaussian_noise', choices=['none', 'Guassian_noise', 'DRAEM', 'Simplex_noise'], action='store')
     parser.add_argument('--multi_layer', default=False, action='store')
@@ -304,7 +283,7 @@ if __name__=="__main__":
     parser.add_argument('--number_iterations', default=1, action='store')
     parser.add_argument('--control_texture', default=False, action='store')
     parser.add_argument('--cutout', default=False, action='store')
-    parser.add_argument('--resume_training', default=False, action='store')
+    parser.add_argument('--resume_training', default=True, action='store')
     
     args = parser.parse_args()
    

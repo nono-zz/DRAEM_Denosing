@@ -407,15 +407,15 @@ if __name__ == '__main__':
     
     # root = '/home/zhaoxiang/DRAEM_Denosing/sample_liver_images'
     # img_names = os.listdir(os.path.join(root, 'raw'))
-    root = '/home/zhaoxiang/dataset/hist_DIY/train/good'
-    dst_root = '/home/zhaoxiang/dataset/hist_DIY_pseudo/train_aug'
-    dst_root_gt = '/home/zhaoxiang/dataset/hist_DIY_pseudo/train_label'
-    dst_root_raw = '/home/zhaoxiang/dataset/hist_DIY_pseudo/train_raw'
+    root = '/home/zhaoxiang/dataset/visualization_sample/train/good/'
+    dst_root = '/home/zhaoxiang/dataset/visualization_sample/train_aug'
+    # dst_root_gt = '/home/zhaoxiang/dataset/hist_DIY_pseudo/train_label'
+    # dst_root_raw = '/home/zhaoxiang/dataset/hist_DIY_pseudo/train_raw'
     img_names = os.listdir(root)
     img_names.sort()
     
     
-    for i in range(5):
+    for i in range(1):
         for img_name in img_names:
             
             img_path = os.path.join(root, img_name)
@@ -428,21 +428,21 @@ if __name__ == '__main__':
             
         
             # big light anomalies
-            colorJitter_img, colorJitter_gt = colorJitterRandom(img_numpy, args, colorRange=100, threshold=200)
-            while(colorJitter_gt.sum() == 0):
-                colorJitter_img, colorJitter_gt = colorJitterRandom(img_numpy, colorRange=100, threshold=200)
+            colorJitter_img, colorJitter_gt = colorJitterRandom_old(img_numpy, args, colorRange=100, threshold=200)
+            # while(colorJitter_gt.sum() == 0):
+            #     colorJitter_img, colorJitter_gt = colorJitterRandom(img_numpy, colorRange=100, threshold=200)
                 
                 # # small anomalies
                 # colorJitter_img, colorJitter_gt_2 = colorJitterRandom(img_numpy, minscale=80, colorRange=100, threshold=230)
                 # colorJitter_gt = np.where((colorJitter_gt + colorJitter_gt_2) > 0, 1, 0)
                 
             img_save_path = os.path.join(dst_root, img_name.replace('.png', '_{}.png'.format(i)))
-            gt_save_path = os.path.join(dst_root_gt, img_name.replace('.png', '_{}.png'.format(i)))
-            raw_save_path = os.path.join(dst_root_raw, img_name.replace('.png', '_{}.png'.format(i)))
+            # gt_save_path = os.path.join(dst_root_gt, img_name.replace('.png', '_{}.png'.format(i)))
+            # raw_save_path = os.path.join(dst_root_raw, img_name.replace('.png', '_{}.png'.format(i)))
             
             cv2.imwrite(img_save_path, colorJitter_img)
-            cv2.imwrite(raw_save_path, img_numpy)   
-            cv2.imwrite(gt_save_path, colorJitter_gt*255)
+            # cv2.imwrite(raw_save_path, img_numpy)   
+            # cv2.imwrite(gt_save_path, colorJitter_gt*255)
         
         
         

@@ -15,11 +15,17 @@ from tqdm import tqdm
 import torch.nn.functional as F
 import random
 
-from dataloader_zzx import MVTecDataset, Medical_dataset, MVTecDataset_cross_validation
-from evaluation_mood import evaluation, evaluation_DRAEM, evaluation_reconstruction
+from dataloader_zzx import MVTecDataset, Medical_dataset
+from evaluation_mood import evaluation, evaluation_DRAEM, evaluation_reconstruction, evaluation_visualization
+
 from cutpaste import CutPaste3Way, CutPasteUnion
 
 from model import ReconstructiveSubNetwork, DiscriminativeSubNetwork
+
+from sklearn.manifold import TSNE
+import seaborn as sns
+import matplotlib.pyplot as plt
+import pandas as pd
 
 def get_lr(optimizer):
     for param_group in optimizer.param_groups:
@@ -142,78 +148,89 @@ def train_on_device(args):
         
     train_data = MVTecDataset(root=main_path, transform = test_transform, gt_transform=gt_transform, phase='train', dirs = dirs, data_source=args.experiment_name, args = args)
     val_data = MVTecDataset(root=main_path, transform = test_transform, gt_transform=gt_transform, phase='test', dirs = dirs, data_source=args.experiment_name, args = args)
-    # test_data = MVTecDataset(root=main_path, transform = test_transform, gt_transform=gt_transform, phase='test', dirs = dirs, data_source=args.experiment_name, args = args)
-    test_data = MVTecDataset_cross_validation(root='/home/zhaoxiang/dataset/LiTs_with_labels', transform = test_transform, gt_transform=gt_transform, phase='test', data_source=args.experiment_name, args = args)
-    
+    test_data = MVTecDataset(root=main_path, transform = test_transform, gt_transform=gt_transform, phase='test', dirs = dirs, data_source=args.experiment_name, args = args)
         
     train_dataloader = torch.utils.data.DataLoader(train_data, batch_size = args.bs, shuffle=True)
     val_dataloader = torch.utils.data.DataLoader(val_data, batch_size = args.bs, shuffle = False)
-    test_dataloader = torch.utils.data.DataLoader(test_data, batch_size = 1, shuffle = False)
+    test_dataloader = torch.utils.data.DataLoader(test_data, batch_size = 1, shuffle = True)
         
     loss_l1 = torch.nn.L1Loss()
     # optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
-    optimizer = torch.optim.Adam(model.parameters(), lr = args.lr)
     
-    loss_l2 = torch.nn.modules.loss.MSELoss()
-    loss_ssim = SSIM()
-    loss_focal = FocalLoss()
-    loss_dice = DiceLoss()
-    loss_diceBCE = DiceBCELoss()
+        
+    model.eval()
+    data = []
+    target = []
     
-    for epoch in range(last_epoch, args.epochs):
-        # evaluation(args, model_denoise, model_segment, test_dataloader, epoch, loss_l1, visualizer, run_name)
-        # evaluation_reconstruction(args, model, test_dataloader, epoch, loss_l1, run_name)
-        
-        model.train()
-        loss_list = []
-        
-        for img, aug, anomaly_mask in tqdm(train_dataloader):
-            img = torch.reshape(img, (-1, 1, args.img_size, args.img_size))
-            aug = torch.reshape(aug, (-1, 1, args.img_size, args.img_size))
-            anomaly_mask = torch.reshape(anomaly_mask, (-1, 1, args.img_size, args.img_size))
+    i = 0
+    iteration = 0
+
+    with torch.no_grad():
+        for img, gt, label, img_path, save in tqdm(test_dataloader):
+            if iteration == 320:
+                break
+            iteration += 1
+            
+            
             
             img = img.cuda()
-            aug = aug.cuda()
-            anomaly_mask = anomaly_mask.cuda()
+            gt[gt > 0.1] = 1
+            gt[gt <= 0.1] = 0
+            # check if img is RGB
+            features, blocks = model(img)
+            
+            content = features.detach().cpu().numpy()
+        
+            data.append(content[0].ravel())
+            target.append(torch.max(gt[0]).detach().cpu().numpy() + 2)
+    
+    # data, target = evaluation_visualization(args, model, test_dataloader)
+    
+    for img, aug, anomaly_mask in tqdm(train_dataloader):
+        img = torch.reshape(img, (-1, 1, args.img_size, args.img_size))
+        aug = torch.reshape(aug, (-1, 1, args.img_size, args.img_size))
+        anomaly_mask = torch.reshape(anomaly_mask, (-1, 1, args.img_size, args.img_size))
+        
+        img = img.cuda()
+        aug = aug.cuda()
+        anomaly_mask = anomaly_mask.cuda()
 
-            rec = model(aug)
-            
-            l1_loss = loss_l1(rec,img)
-            
-            loss = l1_loss
-            
-            save_image(aug, 'aug.png')
-            save_image(rec, 'rec_output.png')
-            save_image(img, 'rec_target.png')
-            save_image(anomaly_mask, 'mask_target.png')
-            # loss = loss_l1(img, output)
+        # rec = model(aug)
+        features, blocks = model(aug)
+        # features, blocks = model(img)
+        content = features.detach().cpu().numpy()
+        
+        for j in range(args.bs):
+            data.append(content[j].ravel())
+            target.append(torch.max(anomaly_mask[j]).detach().cpu().numpy())
+        
+        save_image(aug, 'aug.png')
+        # save_image(rec, 'rec_output.png')
+        save_image(img, 'rec_target.png')
+        save_image(anomaly_mask, 'mask_target.png')
+        
+        
+        i += 1
+        
+        if i == 320:
+            break
+    
+    # for 0, 1, 2, 3 to 0, 1, 2
+    target = [0 if x == 2 else x for x in target]
+    target = [2 if x == 3 else x for x in target]
+    
+    # remove 0
+        
+    data = np.array(data)
+    target = np.array(target)
 
-            optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
-        
-            loss_list.append(loss.item())
-            
-        print('epoch [{}/{}], loss:{:.4f}'.format(args.epochs, epoch, mean(loss_list)))
-        
-        with open(result_path, 'a') as f:
-            f.writelines('epoch [{}/{}], loss:{:.4f}'.format(args.epochs, epoch, mean(loss_list)))   
-                
-        if (epoch) % 10 == 0:
-            model.eval()
-            
-            dice_value, auroc_sp, auroc_sp_GMSD = evaluation_reconstruction(args, model, test_dataloader, epoch, loss_l1, run_name)
-            result_path = os.path.join('/home/zhaoxiang/output', run_name, 'results.txt')
-            print('Sample Auroc{:.3f}, Sample Auroc GMSD{:.3f}, Dice{:3f}'.format(auroc_sp, auroc_sp_GMSD, dice_value))
-            
-            with open(result_path, 'a') as f:
-                # f.writelines('Epoch:{}, Pixel Auroc:{:.3f}, Sample Auroc{:.3f}, Dice:{:3f} \n'.format(epoch, auroc_px, auroc_sp, dice_value))   
-                f.writelines('Epoch:{}, Sample Auroc{:.3f}, Sample Auroc GMSD{:.3f}, Dice:{:3f} \n'.format(epoch, auroc_sp, auroc_sp_GMSD, dice_value))   
-            
-            torch.save({'model': model.state_dict(),
-                        'epoch': epoch}, ckp_path)
-        
-        
+    # data = TSNE(n_components=2, perplexity=15, learning_rate=10, verbose=2).fit_transform(data)
+    data = TSNE(n_components=2, perplexity=15, learning_rate=10, verbose=2).fit_transform(data)
+    
+    df = pd.DataFrame({"x":data[:, 0], "y":data[:, 1], "hue":target})
+
+    sns.scatterplot(x="x", y="y", data=df, hue="hue", legend="full")
+    plt.savefig("mnist_conv_autoencoder_data_visualization.png")
 
 if __name__=="__main__":
     
@@ -222,7 +239,7 @@ if __name__=="__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--obj_id', default=1,  action='store', type=int)
     parser.add_argument('--lr', default=0.0001, action='store', type=float)
-    parser.add_argument('--epochs', default=500, action='store', type=int)
+    parser.add_argument('--epochs', default=201, action='store', type=int)
     parser.add_argument('--checkpoint_path', default='./checkpoints/', action='store', type=str)
     parser.add_argument('--log_path', default='./logs/', action='store', type=str)
     parser.add_argument('--visualize', default=True, action='store_true')
@@ -235,16 +252,16 @@ if __name__=="__main__":
     parser.add_argument("-img_size", "--img_size", type=float, default=256, help="noise magnitude.")
     
     # need to be changed/checked every time
-    parser.add_argument('--bs', default = 8, action='store', type=int)
+    parser.add_argument('--bs', default = 1, action='store', type=int)
     parser.add_argument('--gpu_id', default=['0','1'], action='store', type=str, required=False)
-    parser.add_argument('--experiment_name', default='ColorJitter_reconstruction_woRejection_experiment_1', choices=['DRAEM_Denoising_reconstruction, RandomShape_reconstruction, brain, head'], action='store')
+    parser.add_argument('--experiment_name', default='ColorJitter_reconstruction_woRejection_experiment_2', choices=['DRAEM_Denoising_reconstruction, RandomShape_reconstruction, brain, head'], action='store')
     parser.add_argument('--colorRange', default=100, action='store')
-    parser.add_argument('--threshold', default=200, action='store')
+    parser.add_argument('--threshold', default=190, action='store')
     parser.add_argument('--dataset_name', default='hist_DIY', choices=['hist_DIY', 'Brain_MRI', 'CovidX', 'RESC_average'], action='store')
     parser.add_argument('--model', default='ws_skip_connection', choices=['ws_skip_connection', 'DRAEM_reconstruction', 'DRAEM_discriminitive'], action='store')
     parser.add_argument('--process_method', default='ColorJitter', choices=['none', 'Guassian_noise', 'DRAEM', 'Simplex_noise'], action='store')
     parser.add_argument('--multi_layer', default=False, action='store')
-    parser.add_argument('--rejection', default=False, action='store')
+    parser.add_argument('--rejection', default=True, action='store')
     parser.add_argument('--number_iterations', default=1, action='store')
     parser.add_argument('--control_texture', default=False, action='store')
     parser.add_argument('--cutout', default=False, action='store')

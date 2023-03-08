@@ -282,21 +282,21 @@ def train_on_device(args):
                         'model': model_segment.state_dict(),
                         'epoch': epoch}, ckp_path)
             
-            if auroc_sp > best_SP:
-                best_SP = auroc_sp
-                torch.save({'model_denoise': model_denoise.state_dict(),
-                        'model': model_segment.state_dict(),
-                        'epoch': epoch,
-                        'SP': best_SP,
-                        'dice': dice_value}, ckp_path.replace('last', 'bestSP_{}_DICE_{}'.format(best_SP, dice_value)))
+            # if auroc_sp > best_SP:
+            #     best_SP = auroc_sp
+            #     torch.save({'model_denoise': model_denoise.state_dict(),
+            #             'model': model_segment.state_dict(),
+            #             'epoch': epoch,
+            #             'SP': best_SP,
+            #             'dice': dice_value}, ckp_path.replace('last', 'bestSP_{}_DICE_{}'.format(best_SP, dice_value)))
             
-            if dice_value > best_dice:
-                best_dice = dice_value
-                torch.save({'model_denoise': model_denoise.state_dict(),
-                        'model': model_segment.state_dict(),
-                        'epoch': epoch,
-                        'SP': best_SP,
-                        'dice': dice_value}, ckp_path.replace('last', 'SP_{}_bestDICE_{}'.format(auroc_sp,best_dice)))
+            # if dice_value > best_dice:
+            #     best_dice = dice_value
+            #     torch.save({'model_denoise': model_denoise.state_dict(),
+            #             'model': model_segment.state_dict(),
+            #             'epoch': epoch,
+            #             'SP': best_SP,
+            #             'dice': dice_value}, ckp_path.replace('last', 'SP_{}_bestDICE_{}'.format(auroc_sp,best_dice)))
                 
                 
         wandb.log({"loss": np.mean(loss_list),
@@ -338,14 +338,14 @@ if __name__=="__main__":
     parser.add_argument('--bs', default = 16, action='store', type=int)
     parser.add_argument('--gpu_id', default=['0','1'], action='store', type=str, required=False)
     # parser.add_argument('--gpu_id', default='1', action='store', type=str, required=False)
-    parser.add_argument('--experiment_name', default='DRAEM_Denoising_reject_weightDecay_bs_16_experiment_1', choices=['DRAEM_Denoising_reconstruction, liver, brain, head'], action='store')
+    parser.add_argument('--experiment_name', default='DRAEM_Denoising_woRejection', choices=['DRAEM_Denoising_reconstruction, liver, brain, head'], action='store')
     parser.add_argument('--colorRange', default=100, action='store')
     parser.add_argument('--threshold', default=200, action='store')
     parser.add_argument('--dataset_name', default='hist_DIY', choices=['hist_DIY', 'Brain_MRI', 'CovidX', 'RESC_average'], action='store')
     parser.add_argument('--model', default='DRAEM', choices=['ws_skip_connection', 'DRAEM_reconstruction', 'DRAEM_discriminitive'], action='store')
     parser.add_argument('--process_method', default='Gaussian_noise', choices=['none', 'Guassian_noise', 'DRAEM', 'Simplex_noise'], action='store')
     parser.add_argument('--multi_layer', default=False, action='store')
-    parser.add_argument('--rejection', default=True, action='store')
+    parser.add_argument('--rejection', default=False, action='store')
     parser.add_argument('--number_iterations', default=1, action='store')
     parser.add_argument('--control_texture', default=False, action='store')
     parser.add_argument('--cutout', default=False, action='store')

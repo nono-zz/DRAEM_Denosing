@@ -1,0 +1,240 @@
+epoch [200/0], loss:0.0069 
+Epoch:0, Sample Auroc0.751, Dice0.524 
+epoch [200/1], loss:0.0005 
+epoch [200/2], loss:0.0004 
+epoch [200/3], loss:0.0004 
+epoch [200/4], loss:0.0004 
+epoch [200/5], loss:0.0003 
+Epoch:5, Sample Auroc0.753, Dice0.550 
+epoch [200/6], loss:0.0003 
+epoch [200/7], loss:0.0003 
+epoch [200/8], loss:0.0003 
+epoch [200/9], loss:0.0002 
+epoch [200/10], loss:0.0003 
+Epoch:10, Sample Auroc0.750, Dice0.546 
+epoch [200/11], loss:0.0002 
+epoch [200/12], loss:0.0003 
+epoch [200/13], loss:0.0002 
+epoch [200/14], loss:0.0002 
+epoch [200/15], loss:0.0003 
+Epoch:15, Sample Auroc0.749, Dice0.511 
+epoch [200/16], loss:0.0002 
+epoch [200/17], loss:0.0003 
+epoch [200/18], loss:0.0002 
+epoch [200/19], loss:0.0002 
+epoch [200/20], loss:0.0002 
+Epoch:20, Sample Auroc0.757, Dice0.525 
+epoch [200/21], loss:0.0002 
+epoch [200/22], loss:0.0003 
+epoch [200/23], loss:0.0003 
+epoch [200/24], loss:0.0002 
+epoch [200/25], loss:0.0002 
+Epoch:25, Sample Auroc0.745, Dice0.552 
+epoch [200/26], loss:0.0002 
+epoch [200/27], loss:0.0002 
+epoch [200/28], loss:0.0002 
+epoch [200/29], loss:0.0002 
+epoch [200/30], loss:0.0002 
+Epoch:30, Sample Auroc0.750, Dice0.545 
+epoch [200/31], loss:0.0002 
+epoch [200/32], loss:0.0002 
+epoch [200/33], loss:0.0002 
+epoch [200/34], loss:0.0002 
+epoch [200/35], loss:0.0002 
+Epoch:35, Sample Auroc0.734, Dice0.545 
+epoch [200/36], loss:0.0002 
+epoch [200/37], loss:0.0002 
+epoch [200/38], loss:0.0002 
+epoch [200/39], loss:0.0002 
+epoch [200/40], loss:0.0002 
+Epoch:40, Sample Auroc0.746, Dice0.545 
+epoch [200/41], loss:0.0001 
+epoch [200/42], loss:0.0001 
+epoch [200/43], loss:0.0002 
+epoch [200/44], loss:0.0001 
+epoch [200/45], loss:0.0002 
+Epoch:45, Sample Auroc0.738, Dice0.550 
+epoch [200/46], loss:0.0001 
+epoch [200/47], loss:0.0002 
+epoch [200/48], loss:0.0002 
+epoch [200/49], loss:0.0002 
+epoch [200/50], loss:0.0001 
+Epoch:50, Sample Auroc0.730, Dice0.543 
+epoch [200/51], loss:0.0001 
+epoch [200/52], loss:0.0001 
+epoch [200/53], loss:0.0001 
+epoch [200/54], loss:0.0001 
+epoch [200/55], loss:0.0001 
+Epoch:55, Sample Auroc0.750, Dice0.518 
+epoch [200/56], loss:0.0002 
+epoch [200/57], loss:0.0002 
+epoch [200/58], loss:0.0001 
+epoch [200/59], loss:0.0002 
+epoch [200/60], loss:0.0001 
+Epoch:60, Sample Auroc0.747, Dice0.552 
+epoch [200/61], loss:0.0001 
+epoch [200/62], loss:0.0001 
+epoch [200/63], loss:0.0001 
+epoch [200/64], loss:0.0001 
+epoch [200/65], loss:0.0001 
+Epoch:65, Sample Auroc0.744, Dice0.511 
+epoch [200/66], loss:0.0001 
+epoch [200/67], loss:0.0001 
+epoch [200/68], loss:0.0001 
+epoch [200/69], loss:0.0001 
+epoch [200/70], loss:0.0001 
+Epoch:70, Sample Auroc0.744, Dice0.513 
+epoch [200/71], loss:0.0001 
+epoch [200/72], loss:0.0001 
+epoch [200/73], loss:0.0001 
+epoch [200/74], loss:0.0001 
+epoch [200/75], loss:0.0001 
+Epoch:75, Sample Auroc0.754, Dice0.555 
+epoch [200/76], loss:0.0001 
+epoch [200/77], loss:0.0001 
+epoch [200/78], loss:0.0001 
+epoch [200/79], loss:0.0001 
+epoch [200/80], loss:0.0001 
+Epoch:80, Sample Auroc0.749, Dice0.550 
+epoch [200/81], loss:0.0001 
+epoch [200/82], loss:0.0001 
+epoch [200/83], loss:0.0001 
+epoch [200/84], loss:0.0001 
+epoch [200/85], loss:0.0001 
+Epoch:85, Sample Auroc0.745, Dice0.542 
+epoch [200/86], loss:0.0001 
+epoch [200/87], loss:0.0001 
+epoch [200/88], loss:0.0001 
+epoch [200/89], loss:0.0001 
+epoch [200/90], loss:0.0001 
+Epoch:90, Sample Auroc0.741, Dice0.547 
+epoch [200/91], loss:0.0001 
+epoch [200/92], loss:0.0001 
+epoch [200/93], loss:0.0001 
+epoch [200/94], loss:0.0001 
+epoch [200/95], loss:0.0001 
+Epoch:95, Sample Auroc0.741, Dice0.509 
+epoch [200/96], loss:0.0001 
+epoch [200/97], loss:0.0001 
+epoch [200/98], loss:0.0001 
+epoch [200/99], loss:0.0001 
+epoch [200/100], loss:0.0001 
+Epoch:100, Sample Auroc0.746, Dice0.551 
+epoch [200/101], loss:0.0001 
+epoch [200/102], loss:0.0001 
+epoch [200/103], loss:0.0001 
+epoch [200/104], loss:0.0001 
+epoch [200/105], loss:0.0001 
+Epoch:105, Sample Auroc0.738, Dice0.473 
+epoch [200/106], loss:0.0001 
+epoch [200/107], loss:0.0001 
+epoch [200/108], loss:0.0001 
+epoch [200/109], loss:0.0001 
+epoch [200/110], loss:0.0001 
+Epoch:110, Sample Auroc0.747, Dice0.524 
+epoch [200/111], loss:0.0001 
+epoch [200/112], loss:0.0001 
+epoch [200/113], loss:0.0001 
+epoch [200/114], loss:0.0001 
+epoch [200/115], loss:0.0001 
+Epoch:115, Sample Auroc0.736, Dice0.532 
+epoch [200/116], loss:0.0001 
+epoch [200/117], loss:0.0001 
+epoch [200/118], loss:0.0001 
+epoch [200/119], loss:0.0001 
+epoch [200/120], loss:0.0001 
+Epoch:120, Sample Auroc0.728, Dice0.528 
+epoch [200/121], loss:0.0001 
+epoch [200/122], loss:0.0001 
+epoch [200/123], loss:0.0001 
+epoch [200/124], loss:0.0001 
+epoch [200/125], loss:0.0001 
+Epoch:125, Sample Auroc0.720, Dice0.529 
+epoch [200/126], loss:0.0001 
+epoch [200/127], loss:0.0001 
+epoch [200/128], loss:0.0001 
+epoch [200/129], loss:0.0001 
+epoch [200/130], loss:0.0001 
+Epoch:130, Sample Auroc0.730, Dice0.544 
+epoch [200/131], loss:0.0001 
+epoch [200/132], loss:0.0001 
+epoch [200/133], loss:0.0001 
+epoch [200/134], loss:0.0001 
+epoch [200/135], loss:0.0001 
+Epoch:135, Sample Auroc0.733, Dice0.536 
+epoch [200/136], loss:0.0001 
+epoch [200/137], loss:0.0001 
+epoch [200/138], loss:0.0001 
+epoch [200/139], loss:0.0001 
+epoch [200/140], loss:0.0001 
+Epoch:140, Sample Auroc0.741, Dice0.539 
+epoch [200/141], loss:0.0001 
+epoch [200/142], loss:0.0001 
+epoch [200/143], loss:0.0001 
+epoch [200/144], loss:0.0001 
+epoch [200/145], loss:0.0001 
+Epoch:145, Sample Auroc0.733, Dice0.544 
+epoch [200/146], loss:0.0001 
+epoch [200/147], loss:0.0001 
+epoch [200/148], loss:0.0001 
+epoch [200/149], loss:0.0001 
+epoch [200/150], loss:0.0001 
+Epoch:150, Sample Auroc0.742, Dice0.545 
+epoch [200/151], loss:0.0001 
+epoch [200/152], loss:0.0001 
+epoch [200/153], loss:0.0001 
+epoch [200/154], loss:0.0001 
+epoch [200/155], loss:0.0001 
+Epoch:155, Sample Auroc0.745, Dice0.532 
+epoch [200/156], loss:0.0001 
+epoch [200/157], loss:0.0001 
+epoch [200/158], loss:0.0001 
+epoch [200/159], loss:0.0001 
+epoch [200/160], loss:0.0001 
+Epoch:160, Sample Auroc0.736, Dice0.549 
+epoch [200/161], loss:0.0001 
+epoch [200/162], loss:0.0001 
+epoch [200/163], loss:0.0001 
+epoch [200/164], loss:0.0001 
+epoch [200/165], loss:0.0001 
+Epoch:165, Sample Auroc0.731, Dice0.535 
+epoch [200/166], loss:0.0001 
+epoch [200/167], loss:0.0001 
+epoch [200/168], loss:0.0001 
+epoch [200/169], loss:0.0001 
+epoch [200/170], loss:0.0001 
+Epoch:170, Sample Auroc0.750, Dice0.525 
+epoch [200/171], loss:0.0001 
+epoch [200/172], loss:0.0001 
+epoch [200/173], loss:0.0001 
+epoch [200/174], loss:0.0001 
+epoch [200/175], loss:0.0001 
+Epoch:175, Sample Auroc0.748, Dice0.553 
+epoch [200/176], loss:0.0001 
+epoch [200/177], loss:0.0001 
+epoch [200/178], loss:0.0001 
+epoch [200/179], loss:0.0001 
+epoch [200/180], loss:0.0001 
+Epoch:180, Sample Auroc0.731, Dice0.548 
+epoch [200/181], loss:0.0001 
+epoch [200/182], loss:0.0001 
+epoch [200/183], loss:0.0001 
+epoch [200/184], loss:0.0001 
+epoch [200/185], loss:0.0001 
+Epoch:185, Sample Auroc0.746, Dice0.484 
+epoch [200/186], loss:0.0001 
+epoch [200/187], loss:0.0001 
+epoch [200/188], loss:0.0001 
+epoch [200/189], loss:0.0001 
+epoch [200/190], loss:0.0001 
+Epoch:190, Sample Auroc0.752, Dice0.540 
+epoch [200/191], loss:0.0001 
+epoch [200/192], loss:0.0001 
+epoch [200/193], loss:0.0001 
+epoch [200/194], loss:0.0001 
+epoch [200/195], loss:0.0001 
+Epoch:195, Sample Auroc0.742, Dice0.541 
+epoch [200/196], loss:0.0001 
+epoch [200/197], loss:0.0001 
+epoch [200/198], loss:0.0001 
+epoch [200/199], loss:0.0001 
