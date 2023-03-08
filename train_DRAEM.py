@@ -123,7 +123,7 @@ def train_on_device(args):
         model = DiscriminativeSubNetwork(in_channels=n_input, out_channels=n_input).cuda()
     elif args.model == 'DRAEM':
         # model_denoise = UNet(in_channels=n_input, n_classes=n_classes, norm="group", up_mode="upconv", depth=depth, wf=wf, padding=True)
-        model = ReconstructiveSubNetwork(in_channels=n_input, out_channels=n_input).cuda()
+        model_denoise = ReconstructiveSubNetwork(in_channels=n_input, out_channels=n_input).cuda()
         model_segment = DiscriminativeSubNetwork(in_channels=2, out_channels=2).cuda()
         # model_denoise = torch.nn.DataParallel(model_denoise, device_ids=[0])
         # model_segment = torch.nn.DataParallel(model_segment, device_ids=[0])
@@ -138,7 +138,7 @@ def train_on_device(args):
             os.makedirs(experiment_path, exist_ok=True)
         ckp_path = os.path.join(experiment_path, 'last.pth')
         
-        model_denoise.load_state_dict(torch.load(ckp_path, map_location = 'cpu'))
+        # model_denoise.load_state_dict(torch.load(ckp_path, map_location = 'cpu'))
         model_denoise = model_denoise.cuda()
         
         # model_denoise = torch.nn.DataParallel(model_denoise, device_ids=[0, 1])
@@ -187,34 +187,24 @@ def train_on_device(args):
             aug = aug.cuda()
             anomaly_mask = anomaly_mask.cuda()
             
-            # if "Gaussian" in args.process_method:
-            #     input = add_Gaussian_noise(img, args.noise_res, args.noise_std, args.img_size)         # if noise -> reconstruction
-
             rec = model_denoise(aug)
-            
-            """ detach the reconstruction image? """
-            rec = rec.to('cpu').detach()
-            rec = rec.cuda()
-            
             joined_in = torch.cat((rec, aug), dim=1)
             
             out_mask = model_segment(joined_in)
             out_mask_sm = torch.softmax(out_mask, dim=1)
 
             l2_loss = loss_l2(rec,img)
+            # l1_loss = loss_l1(rec, img)
             ssim_loss = loss_ssim(rec, img)
             
             if anomaly_mask.max() != 0:
                 segment_loss = loss_focal(out_mask_sm, anomaly_mask)
-                loss = segment_loss
+                # loss = segment_loss
+                loss = l2_loss + ssim_loss + segment_loss
             else:
-                continue
-            # Dice_loss = loss_diceBCE(out_mask_sm, anomaly_mask)
-            
-            # loss = l2_loss + ssim_loss + segment_loss
-            # loss = Dice_loss
-
-            
+                # continue
+                loss = l2_loss + ssim_loss
+        
             save_image(aug, 'aug.png')
             save_image(rec, 'rec_output.png')
             save_image(img, 'rec_target.png')
@@ -229,41 +219,6 @@ def train_on_device(args):
             loss_list.append(loss.item())
             
         print('epoch [{}/{}], loss:{:.4f}'.format(args.epochs, epoch, mean(loss_list)))
-        
-        # with torch.no_grad():
-        #     if (epoch) % 3 == 0:
-        #         model_segment.eval()
-        #         model_denoise.eval()
-        #         error_list = []
-        #         for img, gt, label, img_path, saves in val_dataloader:
-        #             img = img.cuda()
-        #             gt = gt.cuda()
-                    
-        #             rec = model_denoise(img)
-                    
-        #             joined_in = torch.cat((rec, img), dim=1)
-                    
-        #             out_mask = model_segment(joined_in)
-        #             out_mask_sm = torch.softmax(out_mask, dim=1)
-                    
-        #             if gt.max() != 0:
-        #                 segment_loss = loss_focal(out_mask_sm, gt)
-        #                 loss = segment_loss
-        #             else:
-        #                 continue
-                    
-        #             save_image(img, 'eval_aug.png')
-        #             save_image(rec, 'eval_rec_output.png')
-        #             save_image(gt, 'eval_mask_target.png')
-        #             save_image(out_mask_sm[:,1:,:,:], 'gt_mask_output.png')
-                    
-        #             error_list.append(loss.item())
-                
-        #         print('eval [{}/{}], error:{:.4f}'.format(args.epochs, epoch, mean(error_list)))
-                # visualizer.plot_loss(mean(error_list), epoch, loss_name='L1_loss_eval')
-                # visualizer.visualize_image_batch(input, epoch, image_name='target_eval')
-                # visualizer.visualize_image_batch(output, epoch, image_name='output_eval')
-                
         if (epoch) % 10 == 0:
             model_segment.eval()
             model_denoise.eval()
@@ -301,15 +256,19 @@ if __name__=="__main__":
     
     # need to be changed/checked every time
     parser.add_argument('--bs', default = 8, action='store', type=int)
-    parser.add_argument('--gpu_id', default=['1'], action='store', type=str, required=False)
-    parser.add_argument('--experiment_name', default='DRAEM_Denoising', choices=['retina, liver, brain, head'], action='store')
+    parser.add_argument('--gpu_id', default=['0','1'], action='store', type=str, required=False)
+    parser.add_argument('--experiment_name', default='DRAEM_Augmentation', choices=['DRAEM_Denoising_reconstruction, RandomShape_reconstruction, brain, head'], action='store')
+    parser.add_argument('--colorRange', default=100, action='store')
+    parser.add_argument('--threshold', default=200, action='store')
     parser.add_argument('--dataset_name', default='hist_DIY', choices=['hist_DIY', 'Brain_MRI', 'CovidX', 'RESC_average'], action='store')
     parser.add_argument('--model', default='DRAEM', choices=['ws_skip_connection', 'DRAEM_reconstruction', 'DRAEM_discriminitive'], action='store')
-    parser.add_argument('--process_method', default='Guassian_noise', choices=['none', 'Guassian_noise', 'DRAEM', 'Simplex_noise'], action='store')
-    parser.add_argument('--threshold', default=0.15, action='store')
+    parser.add_argument('--process_method', default='ColorJitter', choices=['none', 'Guassian_noise', 'DRAEM', 'Simplex_noise'], action='store')
     parser.add_argument('--multi_layer', default=False, action='store')
+    parser.add_argument('--rejection', default=False, action='store')
+    parser.add_argument('--number_iterations', default=1, action='store')
+    parser.add_argument('--control_texture', default=False, action='store')
+    parser.add_argument('--cutout', default=False, action='store')
     parser.add_argument('--resume_training', default=False, action='store')
-    
     args = parser.parse_args()
    
     os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
