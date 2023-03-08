@@ -3,18 +3,17 @@ from matplotlib.pyplot import gray
 import torch
 from torch.utils.data import DataLoader
 from torch import optim
-from tensorboard_visualizer import TensorboardVisualizer
 from loss import FocalLoss, SSIM, DiceLoss, DiceBCELoss
 import os
 from torchvision import transforms
 from torchvision.utils import save_image
 from torchvision.datasets import ImageFolder
-import numpy as np
+from tqdm import tqdm
 
 import torch.nn.functional as F
 import random
 
-from dataloader_zzx import MVTecDataset, Medical_dataset
+from dataloader_zzx import MVTecDataset, MVTecDataset_cross_validation
 from evaluation_mood import evaluation, evaluation_DRAEM
 from cutpaste import CutPaste3Way, CutPasteUnion
 
@@ -152,11 +151,11 @@ def train_on_device(args):
         last_epoch = torch.load(ckp_path.replace('last', 'segment'))['epoch']
         
     train_data = MVTecDataset(root=main_path, transform = test_transform, gt_transform=gt_transform, phase='train', dirs = dirs, data_source=args.experiment_name, args = args)
-    val_data = MVTecDataset(root=main_path, transform = test_transform, gt_transform=gt_transform, phase='test', dirs = dirs, data_source=args.experiment_name, args = args)
-    test_data = MVTecDataset(root=main_path, transform = test_transform, gt_transform=gt_transform, phase='test', dirs = dirs, data_source=args.experiment_name, args = args)
+    # test_data = MVTecDataset(root=main_path, transform = test_transform, gt_transform=gt_transform, phase='test', dirs = dirs, data_source=args.experiment_name, args = args)
+    test_data = MVTecDataset_cross_validation(root='/home/zhaoxiang/dataset/LiTs_with_labels', transform = test_transform, gt_transform=gt_transform, phase='test', data_source=args.experiment_name, args = args)
+    
         
     train_dataloader = torch.utils.data.DataLoader(train_data, batch_size = args.bs, shuffle=False)
-    val_dataloader = torch.utils.data.DataLoader(val_data, batch_size = args.bs, shuffle = False)
     test_dataloader = torch.utils.data.DataLoader(test_data, batch_size = 1, shuffle = False)
         
     loss_l1 = torch.nn.L1Loss()
@@ -166,19 +165,17 @@ def train_on_device(args):
     loss_l2 = torch.nn.modules.loss.MSELoss()
     loss_ssim = SSIM()
     loss_focal = FocalLoss()
-    loss_dice = DiceLoss()
-    loss_diceBCE = DiceBCELoss()
     
     for epoch in range(last_epoch, args.epochs):
     # for epoch in range(args.epochs):
         # evaluation(args, model_denoise, model_segment, test_dataloader, epoch, loss_l1, visualizer, run_name)
         model_segment.train()
-        model_denoise.eval()
+        model_denoise.train()
         loss_list = []
         
         # evaluation_DRAEM(args, model_denoise, model_segment, test_dataloader, epoch, loss_l1, run_name)
         # for img, label, img_path in train_dataloader:         
-        for img, aug, anomaly_mask in train_dataloader:
+        for img, aug, anomaly_mask in tqdm(train_dataloader):
             img = torch.reshape(img, (-1, 1, args.img_size, args.img_size))
             aug = torch.reshape(aug, (-1, 1, args.img_size, args.img_size))
             anomaly_mask = torch.reshape(anomaly_mask, (-1, 1, args.img_size, args.img_size))
