@@ -847,7 +847,6 @@ def evaluation_reconstruction(args, model, test_dataloader, epoch, loss_function
     # return dice_value, auroc_px, auroc_sp
     return dice_value, auroc_sp, auroc_sp_GMSD
 
-
 def evaluation_visualization(args, model, test_dataloader):
     
     model.eval()
